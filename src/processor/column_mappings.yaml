@@ -1,0 +1,223 @@
+# Column name aliases for shareholder data standardization
+# Each key is the canonical column name
+# Each value is a list of known aliases found in source PDFs
+
+folio_no:
+  - "Folio No"
+  - "Folio Number"
+  - "Folio No."
+  - "Investor Folio"
+  - "Folio Id"
+  - "Folio ID"
+  - "Register Folio"
+  - "Reg. Folio"
+  - "Folio No (Face Value)"
+  - "folio_no"
+  - "Folio"
+
+name:
+  - "Name"
+  - "Shareholder Name"
+  - "Name of Shareholder"
+  - "Investor Name"
+  - "Name of Share"
+  - "Name of Investor"
+  - "First Holder Name"
+  - "1st Holder Name"
+  - "Shareholder/Investor Name"
+  - "name"
+
+# Split name columns (created by normalizer)
+first_name:
+  - "first_name"
+  - "First Name"
+  - "Given Name"
+
+middle_name:
+  - "middle_name"
+  - "Middle Name"
+
+last_name:
+  - "last_name"
+  - "Last Name"
+  - "Surname"
+  - "Family Name"
+
+full_name:
+  - "full_name"
+  - "Full Name"
+
+father_husband_name:
+  - "father_husband_name"
+  - "Father's/Husband's Name"
+  - "Father Husband Name"
+  - "Guardian Name"
+
+address:
+  - "Address"
+  - "Registered Address"
+  - "Address of Shareholder"
+  - "Residential Address"
+  - "addr"
+  - "Add."
+  - "Investor Address"
+  - "address"
+
+address_line1:
+  - "address_line1"
+  - "Address Line 1"
+  - "Address 1"
+  - "Addr Line 1"
+
+address_line2:
+  - "address_line2"
+  - "Address Line 2"
+  - "Address 2"
+  - "Addr Line 2"
+
+share_type:
+  - "share_type"
+  - "Share Type"
+  - "Type of Shares"
+  - "Share Category"
+
+demat_account:
+  - "Demat Account"
+  - "Demat A/c No"
+  - "Demat Ac No"
+  - "DP ID-Client ID"
+  - "DP ID - Client ID"
+  - "DPID-CLID"
+  - "DPID CLID"
+  - "DP-ID"
+  - "DP Id"
+  - "Client ID"
+  - "Beneficiary"
+  - "NSDL"
+  - "CDSL"
+  - "demat_account"
+  - "demat"
+
+pan_number:
+  - "PAN"
+  - "PAN Number"
+  - "PAN No"
+  - "PAN No."
+  - "Permanent Account Number"
+  - "pan_number"
+  - "PAN (if available)"
+
+current_holding:
+  - "Current Holding"
+  - "No. of Shares"
+  - "No of Shares"
+  - "Number of Shares"
+  - "Shares"
+  - "Shares Held"
+  - "Share"
+  - "Holding"
+  - "Qty"
+  - "Quantity"
+  - "No."
+  - "Shares Held (as on 27-AUG-2010)"
+  - "Hold_27AUG\n10"
+  - "current_holding"
+  - "No. of Units"
+
+state:
+  - "State"
+  - "State/UT"
+  - "State / UT"
+  - "State Code"
+  - "state"
+
+pincode:
+  - "PINCode"
+  - "PIN Code"
+  - "PIN"
+  - "Postal Code"
+  - "Zip Code"
+  - "pincode"
+
+country:
+  - "Country"
+  - "Country Name"
+  - "country"
+
+company_name:
+  - "Company"
+  - "Company Name"
+  - "Company Code"
+  - "company_name"
+
+dividend_amounts:
+  # Generic pattern for any column containing "dividend" or "amount"
+  # These are handled by regex pattern matching
+  - pattern: "(?:dividend|div|amount|unpaid|unclaimed)"
+  - pattern_flags: "IGNORECASE"
+
+source_file:
+  - "source_file"
+  - "Source"
+  - "PDF File"
+  - "File Name"
+
+year:
+  - "year"
+  - "Year"
+  - "FY"
+  - "Fiscal Year"
+  - "Financial Year"
+
+parsed_at:
+  - "parsed_at"
+  - "Parsed Date"
+  - "Processing Date"
+  - "Date Processed"
+
+# Enrichment columns
+mobile_number:
+  - "mobile_number"
+  - "Mobile"
+  - "Phone"
+  - "Contact Number"
+  - "Mobile Number"
+
+email_id:
+  - "email_id"
+  - "Email"
+  - "Email Address"
+  - "Email ID"
+
+contact_source:
+  - "contact_source"
+  - "Source"
+  - "Contact Source"
+
+verification_status:
+  - "verification_status"
+  - "Status"
+  - "Verified"
+  - "Verification Status"
+
+# CRM columns
+crm_push_status:
+  - "crm_push_status"
+  - "CRM Status"
+  - "Push Status"
+
+crm_push_date:
+  - "crm_push_date"
+  - "CRM Date"
+  - "Push Date"
+
+email_sent:
+  - "email_sent"
+  - "Email Sent"
+  - "Email Sent Flag"
+
+email_sent_date:
+  - "email_sent_date"
+  - "Email Sent Date"
+  - "Date Sent"
+

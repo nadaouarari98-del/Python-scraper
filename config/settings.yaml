@@ -1,0 +1,83 @@
+layer3_apis:
+  apollo:
+    api_key: ""
+    rate_limit_per_minute: 100
+    cost_per_call: 0.025
+  zoominfo:
+    api_key: ""
+    rate_limit_per_minute: 60
+    cost_per_call: 0.04
+# Configuration for the shareholder pipeline
+# Last updated: 2026-03-15
+
+# Deduplication settings
+deduplication:
+  fuzzy_threshold: 85          # 0-100: Minimum similarity score for fuzzy matching
+  match_on_name_address: true  # Enable fuzzy matching on name+address
+  match_on_demat: true         # Enable exact matching on demat account
+
+# Parser settings
+parser:
+  ocr_enabled: false           # Use OCR for scanned PDFs
+  retry_on_fail: true          # Retry failed PDF parsing
+
+# Merger settings
+merger:
+  normalize_columns: true      # Normalize column names to canonical schema
+  preserve_null_values: false  # Keep NaN/null values or fill with defaults
+
+# Filter settings (value-based filtering for high-value shareholders)
+filter_presets:
+  high_value:
+    min_current_holding: 500           # Minimum shares to hold
+    min_total_dividend: 10000          # Minimum total dividend (₹)
+    min_single_year_dividend: 0        # Minimum dividend in any single year
+    investor_type: null                # Optional: filter by type (Promoter, HNI, etc.)
+    logic: "or"                        # "or" (any criterion) or "and" (all criteria)
+  
+  ultra_high_value:
+    min_current_holding: 5000
+    min_total_dividend: 100000
+    min_single_year_dividend: 0
+    investor_type: null
+    logic: "and"
+  
+  custom:
+    min_current_holding: 0
+    min_total_dividend: 0
+    min_single_year_dividend: 0
+    investor_type: null
+    logic: "or"
+
+# Database settings
+database:
+  type: sqlite
+  path: data/pipeline.db
+  create_if_missing: true
+
+# Logging settings
+logging:
+  level: INFO
+  format: "%(asctime)s | %(levelname)-8s | %(message)s"
+  file: dedup.log
+
+# Layer 2 Enrichment settings (public data sources)
+layer2_sources:
+  mca21:
+    enabled: true
+    rate_limit_seconds: 1.0
+  bse:
+    enabled: true
+    rate_limit_seconds: 1.0
+  nse:
+    enabled: true
+    rate_limit_seconds: 1.0
+  iepf:
+    enabled: true
+    rate_limit_seconds: 1.0
+  data_gov:
+    enabled: true
+    rate_limit_seconds: 2.0
+  truecaller:
+    enabled: true
+    rate_limit_seconds: 3.0

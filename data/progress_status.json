@@ -1,0 +1,31 @@
+{
+  "status": "initialized",
+  "timestamp": "2026-03-15T15:56:00Z",
+  "filter": {
+    "total_input": 2643,
+    "filtered_high_value": 0,
+    "filter_preset": null,
+    "hit_rate": "0.0%",
+    "timestamp": "2026-03-15T20:48:53.299555"
+  },
+  "layer1_inhouse": {
+    "total_searched": 0,
+    "layer1_found": 0,
+    "exact_demat_matches": 0,
+    "fuzzy_matches": 0,
+    "layer1_hit_rate": "0.0%",
+    "timestamp": "2026-03-15T20:49:08.276431"
+  },
+  "merger": {
+    "timestamp": "2026-03-15T21:50:46.726246",
+    "files_processed": 2,
+    "total_records": 1196,
+    "column_mapping_issues": 4,
+    "data_errors": 0,
+    "unmapped_columns": [
+      "Sr. No",
+      "Sr No",
+      "original_row_number"
+    ]
+  }
+}

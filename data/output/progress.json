@@ -1,0 +1,11 @@
+{
+  "total": 5,
+  "found": 5,
+  "hit_rate": 1.0,
+  "calls": {
+    "apollo": 0,
+    "zoominfo": 0,
+    "mock": 5
+  },
+  "cost_estimate": 0.0
+}

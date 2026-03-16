@@ -1,0 +1,130 @@
+# =============================================================================
+# Shareholder Pipeline — Sources Configuration
+# =============================================================================
+# Edit this file to add new companies, change source URLs, or adjust settings.
+# All URLs must include the scheme (https://).
+
+# ---------------------------------------------------------------------------
+# BSE India
+# ---------------------------------------------------------------------------
+bse:
+  base_url: "https://www.bseindia.com"
+  search_endpoint: "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w?Group=&Scripcode=&industry=&segment=Equity&status=Active"
+  company_page_pattern: "https://www.bseindia.com/stock-share-price/{slug}/{code}/"
+  investor_page_keywords:
+    - "investor"
+    - "shareholder"
+    - "iepf"
+
+# ---------------------------------------------------------------------------
+# NSE India
+# ---------------------------------------------------------------------------
+nse:
+  base_url: "https://www.nseindia.com"
+  search_endpoint: "https://www.nseindia.com/api/equity-stockIndices?index=NIFTY%20500"
+  company_search_endpoint: "https://www.nseindia.com/api/search/autocomplete?q={query}"
+  company_page_pattern: "https://www.nseindia.com/get-quotes/equity?symbol={symbol}"
+  investor_page_keywords:
+    - "investor"
+    - "shareholder"
+    - "iepf"
+
+# ---------------------------------------------------------------------------
+# PDF discovery settings
+# ---------------------------------------------------------------------------
+pdf_discovery:
+  # Link text or URL fragments that indicate IEPF / shareholding PDFs
+  link_keywords:
+    - "iepf"
+    - "unclaimed"
+    - "dividend"
+    - "shareholding"
+    - "shareholder"
+    - "pattern"
+    - "annual report"
+  # File extensions treated as downloadable documents
+  file_extensions:
+    - ".pdf"
+    - ".PDF"
+
+# ---------------------------------------------------------------------------
+# Known companies — direct investor page URLs
+# Client can add new entries in the format:
+#   - name: "Company Name"
+#     slug: "company-slug"          # used for folder naming
+#     investor_page: "https://..."  # direct investor relations page
+#     uses_javascript: false        # set true to force Playwright
+# ---------------------------------------------------------------------------
+known_companies:
+  - name: "Tech Mahindra"
+    slug: "tech-mahindra"
+    investor_page: "https://www.techmahindra.com/investors/shareholder-information/"
+    uses_javascript: false
+
+  - name: "Reliance Industries"
+    slug: "reliance-industries"
+    investor_page: "https://www.ril.com/investors/shareholderservices.aspx"
+    uses_javascript: false
+
+  - name: "Tata Consultancy Services"
+    slug: "tcs"
+    investor_page: "https://www.tcs.com/investors/shareholder-information"
+    uses_javascript: false
+
+  - name: "Infosys"
+    slug: "infosys"
+    investor_page: "https://www.infosys.com/investors/reports-filings/iepf.html"
+    uses_javascript: false
+
+  - name: "Wipro"
+    slug: "wipro"
+    investor_page: "https://www.wipro.com/investors/iepf/"
+    uses_javascript: false
+
+  - name: "HDFC Bank"
+    slug: "hdfc-bank"
+    investor_page: "https://www.hdfcbank.com/personal/resources/learning-centre/invest/iepf"
+    uses_javascript: true
+
+  - name: "ICICI Bank"
+    slug: "icici-bank"
+    investor_page: "https://www.icicibank.com/managed-assets/docs/investor/shareholding-pattern.html"
+    uses_javascript: false
+
+  - name: "State Bank of India"
+    slug: "sbi"
+    investor_page: "https://bank.sbi/web/investor-relations/shareholding-pattern"
+    uses_javascript: true
+
+  - name: "Bajaj Finance"
+    slug: "bajaj-finance"
+    investor_page: "https://www.bajajfinserv.in/investors/iepf"
+    uses_javascript: false
+
+  - name: "Asian Paints"
+    slug: "asian-paints"
+    investor_page: "https://www.asianpaints.com/more/investors/shareholder-information.html"
+    uses_javascript: false
+
+# ---------------------------------------------------------------------------
+# Download behaviour
+# ---------------------------------------------------------------------------
+downloader:
+  rate_limit_per_domain_seconds: 1.0   # minimum gap between requests to same domain
+  max_retries: 3
+  retry_backoff_seconds: 2             # base; doubled each retry (2, 4, 8)
+  request_timeout_seconds: 30
+  user_agent: >
+    Mozilla/5.0 (Windows NT 10.0; Win64; x64)
+    AppleWebKit/537.36 (KHTML, like Gecko)
+    Chrome/121.0.0.0 Safari/537.36
+
+# ---------------------------------------------------------------------------
+# Output paths (relative to project root)
+# ---------------------------------------------------------------------------
+paths:
+  input_dir: "data/input"
+  logs_dir: "data/logs"
+  downloader_log: "data/logs/downloader.log"
+  failed_log: "data/logs/failed_downloads.log"
+  progress_status: "data/logs/progress_status.json"
