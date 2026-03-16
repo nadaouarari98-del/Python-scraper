@@ -1,0 +1,15 @@
+{
+  "run_date": "2026-03-16",
+  "total_records": 9,
+  "layer1_found": 0,
+  "layer1_hit_rate": "0.0%",
+  "layer2_found": 0,
+  "layer2_hit_rate": "0.0%",
+  "layer3_found": 0,
+  "layer3_hit_rate": "0.0%",
+  "total_found": 0,
+  "overall_hit_rate": "0.0%",
+  "no_contact": 9,
+  "duration_hours": 0.0,
+  "output_file": "C:\\Users\\pc\\Documents\\projets\\Python Scraper\\src\\enrichment\\../../data/output/master_enriched.xlsx"
+}

@@ -12,7 +12,7 @@ from src.enrichment.apis.mock_client import MockClient
 from src.enrichment.apis.base_api import APIResult
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), '../../config/settings.yaml')
-DB_PATH = os.path.join(os.path.dirname(__file__), '../../data/pipeline.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), '../../data/output/pipeline.db')
 PROGRESS_PATH = os.path.join(os.path.dirname(__file__), '../../data/output/progress.json')
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), '../../data/output/layer3_enriched.xlsx')
 
