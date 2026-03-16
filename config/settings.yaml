@@ -1,3 +1,6 @@
+verification:
+  numverify_api_key: ""
+  truecaller_api_key: ""
 layer3_apis:
   apollo:
     api_key: ""

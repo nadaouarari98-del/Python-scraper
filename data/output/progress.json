@@ -1,11 +1,6 @@
 {
-  "total_records": 3,
-  "processed": 0,
-  "layer1_found": 0,
-  "layer2_found": 0,
-  "layer3_found": 1,
-  "no_contact": 0,
-  "in_progress": true,
-  "estimated_completion": "2026-03-16 22:42:13",
-  "current_speed_per_hour": 0
+  "total_to_verify": 5,
+  "verified": 0,
+  "invalid": 5,
+  "failed": 0
 }
