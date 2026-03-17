@@ -48,9 +48,15 @@ filter_presets:
   custom:
     min_current_holding: 0
     min_total_dividend: 0
-    min_single_year_dividend: 0
-    investor_type: null
-    logic: "or"
+
+# Company ticker mapping for market price lookup
+company_tickers:
+  "Tech Mahindra": {nse: "TECHM.NS", bse: "532755.BO"}
+  "Tata Finance": {nse: "TATAMOTORS.NS", bse: "500570.BO"}
+  "Reliance Industries": {nse: "RELIANCE.NS", bse: "500325.BO"}
+  "Infosys": {nse: "INFY.NS", bse: "500209.BO"}
+  "HDFC Bank": {nse: "HDFCBANK.NS", bse: "500180.BO"}
+  "IEPF Unclaimed Dividend 2017": {nse: null, bse: null, investor_type: null, logic: "or"}
 
 # Database settings
 database:

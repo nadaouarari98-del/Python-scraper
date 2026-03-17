@@ -1,0 +1,20 @@
+{
+  "Tech Mahindra": {
+    "company": "Tech Mahindra",
+    "nse_price": 1341.800048828125,
+    "bse_price": null,
+    "final_price": 1341.800048828125,
+    "price_date": "2026-03-17",
+    "source": "NSE",
+    "cached": false
+  },
+  "IEPF Unclaimed Dividend 2017": {
+    "company": "IEPF Unclaimed Dividend 2017",
+    "nse_price": null,
+    "bse_price": null,
+    "final_price": 0,
+    "price_date": "2026-03-17",
+    "source": "not_found",
+    "cached": false
+  }
+}
