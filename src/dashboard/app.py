@@ -1,5 +1,5 @@
 from src.dashboard.shareholders_bp import shareholders_bp
-from flask import Flask, jsonify, request, Response, render_template_string, send_file
+from flask import Flask, jsonify, request, Response, render_template_string, send_file, stream_with_context
 from pathlib import Path
 import json
 import pandas as pd
@@ -375,7 +375,7 @@ def create_app():
           
           <div class="content" id="mainContent">
             <!-- Page 1: Dashboard -->
-            <div id="page-1" class="page-section" style="display: block;">
+            <div id="page-1" class="page-section" style="display: none;">
               <h1>Pipeline Dashboard</h1>
             
             <div class="stats-grid">
@@ -452,7 +452,7 @@ def create_app():
             </div>
             
             <!-- Page 2: Data Collection -->
-            <div id="page-2" class="page-section" style="display: none;">
+            <div id="page-2" class="page-section" style="display: block;">
               <h1>Data Collection</h1>
               <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:20px;margin-bottom:20px">
   <div style="font-size:15px;font-weight:600;color:#0369a1;margin-bottom:16px">Add New Company Data</div>
@@ -1003,7 +1003,8 @@ def create_app():
             document.getElementById('refreshTime').textContent = refreshCounter + 's';
           }, 1000);
           
-          updateDashboard();
+          window._only_new_default = true;
+          navigateToPage(2);
           
           setTimeout(() => {
             console.log('=== DASHBOARD RENDER STATUS ===');
@@ -1017,12 +1018,14 @@ def create_app():
         });
       
 var shPage = 1;
-function loadShareholders(page) {
+function loadShareholders(page, onlyNew) {
   shPage = page || shPage;
   var search = (document.getElementById('srchBox') || {}).value || '';
   var company = (document.getElementById('coFilter') || {}).value || '';
   var minWealth = (document.getElementById('wealthFilter') || {}).value || 0;
+  var onlyNewEffective = (typeof onlyNew === 'undefined') ? window._only_new_default : onlyNew;
   var url = '/api/shareholders?search=' + encodeURIComponent(search) + '&company=' + encodeURIComponent(company) + '&min_wealth=' + minWealth + '&page=' + shPage + '&per_page=50&sort=' + (window._shSort||'full_name') + '&order=' + (window._shOrder||'asc');
+  if (onlyNewEffective) url += '&only_new=1';
   fetch(url).then(function(r){return r.json();}).then(function(data){
     var tbody = document.getElementById('shBody');
     if (!tbody) return;
@@ -1083,37 +1086,82 @@ function startPipeline() {
   var url = (document.getElementById('urlInput')||{}).value||'';
   if (!company && !url) { alert('Enter a company name or URL'); return; }
   document.getElementById('pipelineProgress').style.display='block';
-  document.getElementById('progressBar').style.width='5%';
-  document.getElementById('pipelineStep').textContent='Starting...';
+  document.getElementById('progressBar').style.width='3%';
+  document.getElementById('pipelineStep').textContent='Submitting job...';
   document.getElementById('pipelineMsg').textContent='';
-  fetch('/api/pipeline/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({company:company,url:url})})
-    .then(function(r){return r.json();})
-    .then(function(d){if(d.error){alert(d.error);return;}setTimeout(pollPipelineStatus,2000);});
-}
-function pollPipelineStatus() {
-  fetch('/api/pipeline/status').then(function(r){return r.json();}).then(function(d){
-    var b=document.getElementById('progressBar'); if(b) b.style.width=d.progress+'%';
-    var s=document.getElementById('pipelineStep'); if(s) s.textContent=d.step;
-    var m=document.getElementById('pipelineMsg'); if(m) m.textContent=d.message;
-    var p=document.getElementById('pipelinePct'); if(p) p.textContent=d.progress+'%';
-    if(d.running||(d.progress>0&&d.progress<100)){setTimeout(pollPipelineStatus,2000);}
-    else if(d.progress===100){loadShareholders(1);}
+
+  fetch('/api/jobs/submit', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({type: 'download', company: company, url: url})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    if (d.error) { alert(d.error); return; }
+    _openSseStream(d.job_id);
   });
 }
+
+function _openSseStream(jobId) {
+  var evtSource = new EventSource('/api/stream/' + jobId);
+  evtSource.onmessage = function(e) {
+    try {
+      var data = JSON.parse(e.data);
+      var b = document.getElementById('progressBar');
+      var s = document.getElementById('pipelineStep');
+      var m = document.getElementById('pipelineMsg');
+      var p = document.getElementById('pipelinePct');
+      if (b) b.style.width = (data.pct || 0) + '%';
+      if (s) s.textContent = data.step || '';
+      if (m) m.textContent = data.message || '';
+      if (p) p.textContent = (data.pct || 0) + '%';
+      if (data.status === 'done') {
+        evtSource.close();
+        if (b) b.style.width = '100%';
+        if (s) s.textContent = 'Complete';
+        loadShareholders(1);
+      } else if (data.status === 'error') {
+        evtSource.close();
+        if (s) s.textContent = 'Error: ' + (data.step || '');
+        if (b) b.style.background = '#ef4444';
+      }
+    } catch(err) { console.error('SSE parse error', err); }
+  };
+  evtSource.onerror = function() {
+    console.warn('SSE stream closed or errored for job', jobId);
+    evtSource.close();
+  };
+}
+
 function uploadPDFs() {
-  var input=document.getElementById('pdfUpload');
-  if(!input||!input.files||!input.files.length){alert('Select at least one PDF');return;}
-  var status=document.getElementById('uploadStatus');
-  if(status) status.textContent='Uploading...';
-  var fd=new FormData();
-  for(var i=0;i<input.files.length;i++) fd.append('file',input.files[i]);
-  fetch('/api/upload',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-    if(d.error){if(status) status.textContent='Error: '+d.error;return;}
-    if(status) status.textContent='Uploaded '+d.count+' file(s). Processing automatically...';
-    document.getElementById('pipelineProgress').style.display='block';
-    document.getElementById('pipelineStep').textContent='Processing uploaded PDFs...';
-    document.getElementById('progressBar').style.width='50%';
-    setTimeout(function(){loadShareholders(1);document.getElementById('progressBar').style.width='100%';document.getElementById('pipelineStep').textContent='Complete';},30000);
+  var input = document.getElementById('pdfUpload');
+  if (!input || !input.files || !input.files.length) { alert('Select at least one PDF'); return; }
+  var status = document.getElementById('uploadStatus');
+  if (status) status.textContent = 'Uploading...';
+  var fd = new FormData();
+  for (var i = 0; i < input.files.length; i++) fd.append('file', input.files[i]);
+
+  fetch('/api/upload', {method: 'POST', body: fd})
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    if (d.error) { if (status) status.textContent = 'Error: ' + d.error; return; }
+    if (status) status.textContent = 'Uploaded ' + d.count + ' file(s). Processing...';
+    document.getElementById('pipelineProgress').style.display = 'block';
+    // Use the job_id returned by /api/upload to open SSE stream
+    if (d.job_id) {
+      _openSseStream(d.job_id);
+    } else {
+      // Fallback: poll status if older /api/upload doesn't return job_id
+      var iv = setInterval(function(){
+        fetch('/api/pipeline/status').then(function(r){return r.json();}).then(function(d){
+          var bar = document.getElementById('progressBar'); if(bar) bar.style.width=(d.progress||50)+'%';
+          var step = document.getElementById('pipelineStep'); if(step) step.textContent=d.step||'Processing...';
+          if (d.step==='Complete' || d.step==='Error' || d.progress===100) {
+            clearInterval(iv); loadShareholders(1, true);
+          }
+        });
+      }, 2000);
+    }
   });
 }
 
@@ -1398,10 +1446,202 @@ function uploadPDFs() {
         except Exception as e:
             return jsonify({'error': str(e), 'records': []})
     
-    @app.route('/api/summary')
-    def api_summary():
-        """Legacy endpoint"""
-        return api_dashboard_data()
+    # -----------------------------------------------------------------------
+    # Background Job API
+    # -----------------------------------------------------------------------
+
+    @app.route('/api/jobs/submit', methods=['POST'])
+    def api_jobs_submit():
+        """Submit a background pipeline job.
+
+        Body JSON: {"type": "download"|"upload", "company": str, "url": str,
+                    "pdf_paths": [str]}
+        Returns: {"job_id": str}
+        """
+        from src.worker.task_queue import submit_job
+        from src.worker.tasks import run_full_pipeline, run_upload_pipeline
+
+        data = request.get_json(force=True) or {}
+        job_type = data.get('type', 'download')
+
+        if job_type == 'upload':
+            pdf_paths = data.get('pdf_paths', [])
+            if not pdf_paths:
+                return jsonify({'error': 'No pdf_paths provided'}), 400
+            job_id = submit_job(run_upload_pipeline, pdf_paths)
+        else:
+            company = data.get('company', '').strip()
+            url = data.get('url', '').strip()
+            companies = [company] if company else ([url] if url else [])
+            if not companies:
+                return jsonify({'error': 'Provide company or url'}), 400
+            job_id = submit_job(run_full_pipeline, companies)
+
+        return jsonify({'job_id': job_id, 'status': 'queued'})
+
+    @app.route('/api/jobs/status/<job_id>')
+    def api_job_status(job_id: str):
+        """Return the current status of a background job."""
+        from src.worker.task_queue import get_job_status
+        return jsonify(get_job_status(job_id))
+
+    @app.route('/api/jobs/cancel/<job_id>', methods=['POST'])
+    def api_job_cancel(job_id: str):
+        """Cancel a queued/running job."""
+        from src.worker.task_queue import cancel_job
+        ok = cancel_job(job_id)
+        return jsonify({'job_id': job_id, 'cancelled': ok})
+
+    # -----------------------------------------------------------------------
+    # SSE stream endpoint
+    # -----------------------------------------------------------------------
+
+    @app.route('/api/stream/<job_id>')
+    def api_sse_stream(job_id: str):
+        """Server-Sent Events endpoint for real-time job progress.
+
+        The frontend opens an EventSource to this URL after submitting a job.
+        Events are pushed by the background task via push_event().
+        """
+        from src.worker.sse_stream import stream_events
+
+        def generate():
+            yield from stream_events(job_id)
+
+        resp = Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+        )
+        resp.headers['Cache-Control'] = 'no-cache'
+        resp.headers['X-Accel-Buffering'] = 'no'   # disable Nginx buffering
+        resp.headers['Connection'] = 'keep-alive'
+        return resp
+
+    # -----------------------------------------------------------------------
+    # /api/upload — updated to submit a background job and return job_id
+    # -----------------------------------------------------------------------
+
+    @app.route('/api/upload', methods=['POST'])
+    def api_upload():
+        """Accept PDF file uploads and enqueue a background parse job."""
+        from src.worker.task_queue import submit_job
+        from src.worker.tasks import run_upload_pipeline
+
+        files = request.files.getlist('file')
+        if not files:
+            return jsonify({'error': 'No files uploaded'}), 400
+
+        upload_dir = ROOT / 'data' / 'uploads'
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        saved_paths = []
+
+        for f in files:
+            if f.filename and f.filename.lower().endswith('.pdf'):
+                dest = upload_dir / f.filename
+                f.save(dest)
+                saved_paths.append(str(dest))
+
+        if not saved_paths:
+            return jsonify({'error': 'No valid PDF files received'}), 400
+
+        job_id = submit_job(run_upload_pipeline, saved_paths)
+        return jsonify({'count': len(saved_paths), 'job_id': job_id, 'status': 'queued'})
+
+    # -----------------------------------------------------------------------
+    # Person-wise API
+    # -----------------------------------------------------------------------
+
+    @app.route('/api/persons')
+    def api_persons():
+        """Paginated list of persons with their total holdings summary."""
+        from src.processor.database_schema import get_session, Person, Holding, HoldingSnapshot, Contact
+        from sqlalchemy import func
+
+        search = request.args.get('search', '').strip()
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+
+        try:
+            session = get_session()
+            q = session.query(Person)
+            if search:
+                q = q.filter(Person.name_normalized.contains(search.lower()))
+            total = q.count()
+            persons = q.offset((page - 1) * per_page).limit(per_page).all()
+
+            records = []
+            for p in persons:
+                company_count = len(set(h.company_id for h in p.holdings))
+                total_shares = sum(
+                    s.shares or 0
+                    for h in p.holdings
+                    for s in h.snapshots
+                )
+                has_contact = any(c.mobile or c.email for c in p.contacts)
+                records.append({
+                    'id': p.id,
+                    'name': p.name_raw,
+                    'pan': p.pan,
+                    'companies': company_count,
+                    'total_shares': total_shares,
+                    'has_contact': has_contact,
+                })
+            session.close()
+
+            return jsonify({
+                'records': records,
+                'total': total,
+                'page': page,
+                'pages': max(1, (total + per_page - 1) // per_page),
+            })
+        except Exception as e:
+            return jsonify({'error': str(e), 'records': []}), 500
+
+    @app.route('/api/persons/<int:person_id>')
+    def api_person_detail(person_id: int):
+        """Full person card: all companies, all FYs, contact info."""
+        from src.processor.database_schema import get_session, Person
+
+        try:
+            session = get_session()
+            person = session.query(Person).get(person_id)
+            if not person:
+                return jsonify({'error': 'Person not found'}), 404
+
+            holdings_data = []
+            for h in person.holdings:
+                snapshots = [
+                    {'fy': s.financial_year, 'shares': s.shares, 'market_value': s.market_value}
+                    for s in sorted(h.snapshots, key=lambda x: x.financial_year)
+                ]
+                dividends = [
+                    {'fy': d.financial_year, 'amount_rs': d.amount_rs, 'status': d.status}
+                    for d in sorted(h.dividends, key=lambda x: x.financial_year)
+                ]
+                holdings_data.append({
+                    'company': h.company.name if h.company else '',
+                    'folio_no': h.folio_no,
+                    'snapshots': snapshots,
+                    'dividends': dividends,
+                })
+
+            contacts = [
+                {'mobile': c.mobile, 'email': c.email, 'source': c.source,
+                 'layer': c.enrichment_layer, 'verified': c.verified}
+                for c in person.contacts
+            ]
+
+            session.close()
+            return jsonify({
+                'id': person.id,
+                'name': person.name_raw,
+                'pan': person.pan,
+                'address': person.address,
+                'holdings': holdings_data,
+                'contacts': contacts,
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     return app
 

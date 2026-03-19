@@ -306,6 +306,48 @@ def extract_company_from_filename(filename: str) -> str:
     if 'techmahindra' in filename.lower():
         return 'Tech Mahindra'
     
+    # Many PDFs are named like: `{company_slug}_{year}_{original_name}.pdf`.
+    # When the original name also contains words like `iepf/unclaimed/unpaid`,
+    # older logic treated them as a generic "IEPF Dividend ..." bucket and
+    # lost the actual company. Prefer extracting a leading company token first.
+    stem = re.sub(r"\.[pP][dD][fF]$", "", filename)
+    # Prefer taking the "slug" portion up to the first underscore.
+    # Downloader outputs: `{company_slug}_{year}_{original}`.
+    head = stem.split("_", 1)[0].strip()
+    if head:
+        head_lower = head.lower()
+        # Skip obvious non-company heads
+        non_company_heads = {
+            "iepf",
+            "unclaimed",
+            "unpaid",
+            "dividend",
+            "shareholder",
+            "shareholding",
+            "data",
+            "report",
+            "pmt",
+            "trf",
+            "payout",
+            "payment",
+            "transfer",
+        }
+        # If the head looks like a year token, it's probably not a company name.
+        is_head_year = bool(
+            re.match(r"^(20[0-2]\d|20\d{2}[-–]\d{2,4}|\d{4})$", head_lower)
+        )
+
+        if (
+            len(head) >= 2
+            and head_lower not in non_company_heads
+            and not is_head_year
+            and not head_lower.startswith("fy")
+        ):
+            if head_lower == "ntpc":
+                return "NTPC"
+            # Default: convert slug separators to spaces and title-case.
+            return head.replace("&", " And ").replace("-", " ").title().strip()
+
     # For IEPF/dividend PDFs, extract a meaningful label from the filename
     # e.g. 'iepf-unclaimed-dividend-and-corresponding-shares-data-fy-2017-18.pdf'
     #   -> 'IEPF Unclaimed Dividend 2017-18'

@@ -15,22 +15,49 @@ KNOWN_PAGES = {
     'infosys': 'https://www.infosys.com/investors/shareholder-services.html',
     'wipro': 'https://www.wipro.com/investors/',
     'tcs': 'https://www.tcs.com/investor-relations',
+    'tata consultancy': 'https://www.tcs.com/investor-relations',
+    'reliance': 'https://www.ril.com/investor-relations',
     'reliance industries': 'https://www.ril.com/investor-relations',
     'hdfc bank': 'https://www.hdfcbank.com/personal/useful-links/general/investor-relations',
     'icici bank': 'https://www.icicibank.com/aboutus/investor.page',
-    'state bank of india': 'https://sbi.co.in/web/investor-relations',
+    'state bank': 'https://sbi.co.in/web/investor-relations',
+    'sbi': 'https://sbi.co.in/web/investor-relations',
     'hindustan unilever': 'https://www.hul.co.in/investor-relations/',
+    'hul': 'https://www.hul.co.in/investor-relations/',
     'itc': 'https://www.itcportal.com/investor/',
     'asian paints': 'https://www.asianpaints.com/investor-relations.html',
     'bajaj finance': 'https://www.bajajfinserv.in/investments/bajaj-finance-investor-relations',
+    'maruti': 'https://www.marutisuzuki.com/corporate/investors',
     'maruti suzuki': 'https://www.marutisuzuki.com/corporate/investors',
-    'larsen and toubro': 'https://www.larsentoubro.com/investor-relations/',
+    'larsen': 'https://www.larsentoubro.com/investor-relations/',
+    'sun pharma': 'https://sunpharma.com/investors/',
     'sun pharmaceutical': 'https://sunpharma.com/investors/',
     'ntpc': 'https://www.ntpc.co.in/en/investors',
     'ongc': 'https://www.ongcindia.com/ongc/investor-relations',
     'coal india': 'https://www.coalindia.in/investor-relations',
-    'power grid corporation': 'https://www.powergridindia.com/investor-relations',
+    'power grid': 'https://www.powergridindia.com/investor-relations',
     'bharti airtel': 'https://www.airtel.in/about-bharti/investor-relations',
+    'airtel': 'https://www.airtel.in/about-bharti/investor-relations',
+    'hcl': 'https://www.hcltech.com/investor-relations',
+    'hcl technologies': 'https://www.hcltech.com/investor-relations',
+    'axis bank': 'https://www.axisbank.com/shareholder-information',
+    'kotak': 'https://www.kotak.com/en/investor-relations.html',
+    'bajaj auto': 'https://www.bajajauto.com/investor-relations',
+    'titan': 'https://www.titancompany.in/investors',
+    'nestle': 'https://www.nestleindia.com/investors',
+    'britannia': 'https://www.britannia.co.in/investors.aspx',
+    'cipla': 'https://www.cipla.com/investors',
+    'dr reddy': 'https://www.drreddys.com/investors',
+    'divis': 'https://www.divislaboratories.com/investors',
+    'eicher': 'https://www.eichermotors.com/investors',
+    'hero motocorp': 'https://www.heromotocorp.com/en-in/investors.html',
+    'tata motors': 'https://www.tatamotors.com/investors/',
+    'tata steel': 'https://www.tatasteel.com/investors/',
+    'hindalco': 'https://www.hindalco.com/investors',
+    'jsw steel': 'https://www.jswsteel.in/investors',
+    'ultratech': 'https://www.ultratechcement.com/investors',
+    'grasim': 'https://www.grasim.com/investors',
+    'adani': 'https://www.adanienterprises.com/investors',
 }
 
 def find_company_url(company_name: str) -> str:
@@ -40,7 +67,17 @@ def find_company_url(company_name: str) -> str:
             return url
     return None
 
+
 def scrape_pdf_links(url: str) -> list:
+    # First try with requests (fast)
+    links = _scrape_with_requests(url)
+    if links:
+        return links
+    # Fallback to Playwright for JS-rendered pages
+    print(f'No PDFs found with requests, trying Playwright for {url}')
+    return _scrape_with_playwright(url)
+
+def _scrape_with_requests(url: str) -> list:
     try:
         r = requests.get(url, headers=HEADERS, timeout=15)
         if r.status_code != 200:
@@ -57,7 +94,33 @@ def scrape_pdf_links(url: str) -> list:
         links.sort(reverse=True)
         return [(u, t) for s, u, t in links]
     except Exception as e:
-        print(f'Scrape error {url}: {e}')
+        print(f'Requests scrape error {url}: {e}')
+        return []
+
+def _scrape_with_playwright(url: str) -> list:
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.set_extra_http_headers(HEADERS)
+            page.goto(url, timeout=30000, wait_until='networkidle')
+            content = page.content()
+            browser.close()
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        links = []
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+            if '.pdf' in href.lower():
+                full_url = urljoin(url, href)
+                text = (a.get_text() + ' ' + href).lower()
+                score = sum(1 for kw in IEPF_KEYWORDS if kw in text)
+                links.append((score, full_url, a.get_text().strip()))
+        links.sort(reverse=True)
+        return [(u, t) for s, u, t in links]
+    except Exception as e:
+        print(f'Playwright scrape error {url}: {e}')
         return []
 
 def download_pdf(pdf_url: str, output_dir: str = 'data/input/') -> str:

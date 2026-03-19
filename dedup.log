@@ -279,3 +279,201 @@
 2026-03-18 23:44:44,761 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
 2026-03-18 23:44:45,204 | INFO     | Updated SQLite database: data\output\pipeline.db
 2026-03-18 23:44:45,207 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 17:48:09,425 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 17:48:10,053 | INFO     | Loaded 1206 records
+2026-03-19 17:48:10,054 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 17:48:10,063 | INFO     | 
+======================================================================
+2026-03-19 17:48:10,064 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 17:48:10,064 | INFO     | ======================================================================
+2026-03-19 17:48:10,064 | INFO     | Total records before: 1206
+2026-03-19 17:48:10,064 | INFO     | Total duplicates found: 0
+2026-03-19 17:48:10,064 | INFO     |   - Exact demat matches: 0
+2026-03-19 17:48:10,064 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 17:48:10,064 | INFO     | Total records after: 1206
+2026-03-19 17:48:10,064 | INFO     | Retention rate: 100.0%
+2026-03-19 17:48:10,064 | INFO     | Fuzzy threshold: 85%
+2026-03-19 17:48:10,064 | INFO     | ======================================================================
+2026-03-19 17:48:10,603 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 17:48:10,905 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 17:48:10,907 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 17:48:42,313 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 17:48:42,928 | INFO     | Loaded 1206 records
+2026-03-19 17:48:42,928 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 17:48:42,938 | INFO     | 
+======================================================================
+2026-03-19 17:48:42,938 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 17:48:42,938 | INFO     | ======================================================================
+2026-03-19 17:48:42,938 | INFO     | Total records before: 1206
+2026-03-19 17:48:42,938 | INFO     | Total duplicates found: 0
+2026-03-19 17:48:42,938 | INFO     |   - Exact demat matches: 0
+2026-03-19 17:48:42,939 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 17:48:42,939 | INFO     | Total records after: 1206
+2026-03-19 17:48:42,939 | INFO     | Retention rate: 100.0%
+2026-03-19 17:48:42,939 | INFO     | Fuzzy threshold: 85%
+2026-03-19 17:48:42,939 | INFO     | ======================================================================
+2026-03-19 17:48:43,463 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 17:48:43,807 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 17:48:43,808 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 17:51:18,294 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 17:51:18,897 | INFO     | Loaded 1206 records
+2026-03-19 17:51:18,897 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 17:51:18,905 | INFO     | 
+======================================================================
+2026-03-19 17:51:18,905 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 17:51:18,905 | INFO     | ======================================================================
+2026-03-19 17:51:18,905 | INFO     | Total records before: 1206
+2026-03-19 17:51:18,906 | INFO     | Total duplicates found: 0
+2026-03-19 17:51:18,906 | INFO     |   - Exact demat matches: 0
+2026-03-19 17:51:18,906 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 17:51:18,906 | INFO     | Total records after: 1206
+2026-03-19 17:51:18,906 | INFO     | Retention rate: 100.0%
+2026-03-19 17:51:18,906 | INFO     | Fuzzy threshold: 85%
+2026-03-19 17:51:18,906 | INFO     | ======================================================================
+2026-03-19 17:51:19,367 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 17:51:19,728 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 17:51:19,728 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 17:52:16,985 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 17:52:17,540 | INFO     | Loaded 1206 records
+2026-03-19 17:52:17,541 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 17:52:17,547 | INFO     | 
+======================================================================
+2026-03-19 17:52:17,547 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 17:52:17,547 | INFO     | ======================================================================
+2026-03-19 17:52:17,547 | INFO     | Total records before: 1206
+2026-03-19 17:52:17,547 | INFO     | Total duplicates found: 0
+2026-03-19 17:52:17,547 | INFO     |   - Exact demat matches: 0
+2026-03-19 17:52:17,547 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 17:52:17,547 | INFO     | Total records after: 1206
+2026-03-19 17:52:17,548 | INFO     | Retention rate: 100.0%
+2026-03-19 17:52:17,548 | INFO     | Fuzzy threshold: 85%
+2026-03-19 17:52:17,548 | INFO     | ======================================================================
+2026-03-19 17:52:18,060 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 17:52:18,406 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 17:52:18,408 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 17:52:50,374 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 17:52:51,035 | INFO     | Loaded 1206 records
+2026-03-19 17:52:51,035 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 17:52:51,043 | INFO     | 
+======================================================================
+2026-03-19 17:52:51,043 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 17:52:51,043 | INFO     | ======================================================================
+2026-03-19 17:52:51,043 | INFO     | Total records before: 1206
+2026-03-19 17:52:51,043 | INFO     | Total duplicates found: 0
+2026-03-19 17:52:51,043 | INFO     |   - Exact demat matches: 0
+2026-03-19 17:52:51,043 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 17:52:51,043 | INFO     | Total records after: 1206
+2026-03-19 17:52:51,044 | INFO     | Retention rate: 100.0%
+2026-03-19 17:52:51,044 | INFO     | Fuzzy threshold: 85%
+2026-03-19 17:52:51,044 | INFO     | ======================================================================
+2026-03-19 17:52:51,515 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 17:52:51,859 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 17:52:51,860 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 18:07:09,317 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 18:07:10,373 | INFO     | Loaded 1206 records
+2026-03-19 18:07:10,374 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 18:07:10,386 | INFO     | 
+======================================================================
+2026-03-19 18:07:10,386 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 18:07:10,386 | INFO     | ======================================================================
+2026-03-19 18:07:10,387 | INFO     | Total records before: 1206
+2026-03-19 18:07:10,387 | INFO     | Total duplicates found: 0
+2026-03-19 18:07:10,387 | INFO     |   - Exact demat matches: 0
+2026-03-19 18:07:10,387 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 18:07:10,387 | INFO     | Total records after: 1206
+2026-03-19 18:07:10,388 | INFO     | Retention rate: 100.0%
+2026-03-19 18:07:10,388 | INFO     | Fuzzy threshold: 85%
+2026-03-19 18:07:10,388 | INFO     | ======================================================================
+2026-03-19 18:07:11,385 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 18:07:11,970 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 18:07:11,973 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 18:12:57,239 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 18:12:58,558 | INFO     | Loaded 1206 records
+2026-03-19 18:12:58,559 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 18:12:58,580 | INFO     | 
+======================================================================
+2026-03-19 18:12:58,581 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 18:12:58,581 | INFO     | ======================================================================
+2026-03-19 18:12:58,581 | INFO     | Total records before: 1206
+2026-03-19 18:12:58,581 | INFO     | Total duplicates found: 0
+2026-03-19 18:12:58,581 | INFO     |   - Exact demat matches: 0
+2026-03-19 18:12:58,581 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 18:12:58,581 | INFO     | Total records after: 1206
+2026-03-19 18:12:58,581 | INFO     | Retention rate: 100.0%
+2026-03-19 18:12:58,582 | INFO     | Fuzzy threshold: 85%
+2026-03-19 18:12:58,582 | INFO     | ======================================================================
+2026-03-19 18:12:59,616 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 18:13:00,366 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 18:13:00,368 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 19:19:36,389 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 19:19:37,990 | INFO     | Loaded 1206 records
+2026-03-19 19:19:37,990 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 19:19:38,071 | INFO     | 
+======================================================================
+2026-03-19 19:19:38,071 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 19:19:38,071 | INFO     | ======================================================================
+2026-03-19 19:19:38,072 | INFO     | Total records before: 1206
+2026-03-19 19:19:38,072 | INFO     | Total duplicates found: 0
+2026-03-19 19:19:38,072 | INFO     |   - Exact demat matches: 0
+2026-03-19 19:19:38,072 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 19:19:38,072 | INFO     | Total records after: 1206
+2026-03-19 19:19:38,072 | INFO     | Retention rate: 100.0%
+2026-03-19 19:19:38,073 | INFO     | Fuzzy threshold: 85%
+2026-03-19 19:19:38,073 | INFO     | ======================================================================
+2026-03-19 19:19:39,767 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 19:19:40,597 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 19:19:40,599 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 20:33:56,521 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 20:33:57,484 | INFO     | Loaded 1206 records
+2026-03-19 20:33:57,484 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 20:33:57,493 | INFO     | 
+======================================================================
+2026-03-19 20:33:57,493 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 20:33:57,494 | INFO     | ======================================================================
+2026-03-19 20:33:57,494 | INFO     | Total records before: 1206
+2026-03-19 20:33:57,494 | INFO     | Total duplicates found: 0
+2026-03-19 20:33:57,494 | INFO     |   - Exact demat matches: 0
+2026-03-19 20:33:57,494 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 20:33:57,494 | INFO     | Total records after: 1206
+2026-03-19 20:33:57,494 | INFO     | Retention rate: 100.0%
+2026-03-19 20:33:57,494 | INFO     | Fuzzy threshold: 85%
+2026-03-19 20:33:57,494 | INFO     | ======================================================================
+2026-03-19 20:33:57,992 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 20:33:58,663 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 20:33:58,665 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 20:36:41,396 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 20:36:42,256 | INFO     | Loaded 1206 records
+2026-03-19 20:36:42,256 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 20:36:42,267 | INFO     | 
+======================================================================
+2026-03-19 20:36:42,267 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 20:36:42,267 | INFO     | ======================================================================
+2026-03-19 20:36:42,267 | INFO     | Total records before: 1206
+2026-03-19 20:36:42,268 | INFO     | Total duplicates found: 0
+2026-03-19 20:36:42,268 | INFO     |   - Exact demat matches: 0
+2026-03-19 20:36:42,268 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 20:36:42,268 | INFO     | Total records after: 1206
+2026-03-19 20:36:42,268 | INFO     | Retention rate: 100.0%
+2026-03-19 20:36:42,268 | INFO     | Fuzzy threshold: 85%
+2026-03-19 20:36:42,268 | INFO     | ======================================================================
+2026-03-19 20:36:43,510 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 20:36:44,250 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 20:36:44,252 | INFO     | Saved statistics to: data\output\dedup_stats.json
+2026-03-19 20:46:40,780 | INFO     | Loading dataset: data\output\master_merged.xlsx
+2026-03-19 20:46:41,585 | INFO     | Loaded 1206 records
+2026-03-19 20:46:41,585 | INFO     | Deduplicating dataset (threshold: 85%)...
+2026-03-19 20:46:41,604 | INFO     | 
+======================================================================
+2026-03-19 20:46:41,605 | INFO     | DEDUPLICATION STATISTICS
+2026-03-19 20:46:41,605 | INFO     | ======================================================================
+2026-03-19 20:46:41,605 | INFO     | Total records before: 1206
+2026-03-19 20:46:41,605 | INFO     | Total duplicates found: 0
+2026-03-19 20:46:41,605 | INFO     |   - Exact demat matches: 0
+2026-03-19 20:46:41,605 | INFO     |   - Fuzzy name+address matches: 0
+2026-03-19 20:46:41,605 | INFO     | Total records after: 1206
+2026-03-19 20:46:41,606 | INFO     | Retention rate: 100.0%
+2026-03-19 20:46:41,606 | INFO     | Fuzzy threshold: 85%
+2026-03-19 20:46:41,606 | INFO     | ======================================================================
+2026-03-19 20:46:42,526 | INFO     | Saved clean dataset to: data\output\master_deduplicated.xlsx
+2026-03-19 20:46:43,245 | INFO     | Updated SQLite database: data\output\pipeline.db
+2026-03-19 20:46:43,247 | INFO     | Saved statistics to: data\output\dedup_stats.json

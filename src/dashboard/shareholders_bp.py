@@ -1,6 +1,8 @@
 import math
 import os
 import io
+import json
+from datetime import datetime
 import pandas as pd
 from flask import Blueprint, request, jsonify, send_file
 
@@ -36,30 +38,47 @@ def api_shareholders():
     min_wealth = request.args.get('min_wealth', 0, type=float)
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
+    only_new = request.args.get('only_new', '0') == '1'
     try:
         df = _load_df()
     except Exception as e:
         return jsonify({"error": str(e), "records": [], "total": 0, "page": 1, "pages": 1, "companies": []})
     df = _filter_df(df, search, company, min_wealth)
-    # Sorting
-    valid_cols = ['full_name','company_name','folio_no','current_holding','total_dividend','market_value','total_wealth','contact_number']
-    if sort not in valid_cols:
-        sort = 'full_name'
-    ascending = (order == 'asc')
-    if sort in df.columns:
+    if only_new:
+        # Filter to *latest upload batch* (not "all PDFs ever uploaded").
+        # This manifest is written by `/api/upload` right after saving files.
+        manifest_path = 'data/output/last_upload_manifest.json'
+        upload_files: set[str] = set()
+
+        if os.path.exists(manifest_path):
+            try:
+                with open(manifest_path, 'r', encoding='utf-8') as fh:
+                    manifest = json.load(fh) or {}
+                upload_files = set(manifest.get('pdf_files', []) or [])
+            except Exception:
+                upload_files = set()
+
+        # If there's no manifest (or it's empty), show no records.
+        # This matches the "hide any existing data" behavior.
+        if 'source_file' in df.columns:
+            df = df[
+                df['source_file']
+                .fillna('')
+                .astype(str)
+                .apply(lambda x: os.path.basename(x) in upload_files)
+            ]
+        else:
+            df = df.iloc[0:0]
+    # Apply sorting
+    if sort and sort in df.columns:
         try:
-            numeric_cols = ['current_holding','total_dividend','market_value','total_wealth']
-            if sort in numeric_cols:
-                df[sort] = pd.to_numeric(df[sort], errors='coerce').fillna(0)
-            elif sort == 'full_name':
-                # Normalize for alpha sort
-                df['_sort_name'] = df['full_name'].astype(str).str.strip().str.lower()
-                df = df.sort_values(by='_sort_name', ascending=ascending, kind='mergesort')
-                df = df.drop(columns=['_sort_name'])
+            numeric_sort = pd.to_numeric(df[sort], errors='coerce')
+            if numeric_sort.notna().sum() > len(df) * 0.3:
+                df = df.assign(_sort=numeric_sort).sort_values('_sort', ascending=(order=='asc')).drop('_sort', axis=1)
             else:
-                df = df.sort_values(by=sort, ascending=ascending, kind='mergesort')
-        except Exception:
-            pass
+                df = df.sort_values(sort, ascending=(order=='asc'), key=lambda x: x.astype(str).str.lower())
+        except Exception as e:
+            print(f'Sort error on {sort}: {e}')
     total = len(df)
     pages = max(1, math.ceil(total / per_page))
     start = (page - 1) * per_page
@@ -105,6 +124,22 @@ def api_run_pipeline():
     def execute():
         global _pipeline_status
         try:
+            input_root = 'data/input'
+            manifest_path = 'data/output/last_upload_manifest.json'
+
+            def list_input_pdf_basenames() -> set[str]:
+                basenames: set[str] = set()
+                if not os.path.exists(input_root):
+                    return basenames
+                for root, _dirs, files in os.walk(input_root):
+                    for fname in files:
+                        if fname.lower().endswith('.pdf'):
+                            basenames.add(fname)
+                return basenames
+
+            # Snapshot existing PDFs before this pipeline run.
+            before_pdfs = list_input_pdf_basenames()
+
             _pipeline_status = {"running": True, "step": "Searching",
                                "message": f"Finding PDFs for {company or url}...",
                                "progress": 5, "pdfs_found": 0, "records": 0}
@@ -146,6 +181,34 @@ def api_run_pipeline():
                     pdfs.extend(files.keys())
             else:
                 pdfs = []
+
+            # Write manifest for `only_new` filtering (latest pipeline batch).
+            # - If `company` is provided, treat "latest batch" as *all* PDFs for that company slug.
+            #   This covers the case where PDFs already exist and downloader skips re-download.
+            # - If only `url` is provided, fall back to "new PDFs" via filesystem diff.
+            after_pdfs = list_input_pdf_basenames()
+            new_pdfs = sorted(after_pdfs - before_pdfs)
+
+            def slugify(name: str) -> str:
+                # Must match auto_downloader's filename slug strategy.
+                import re
+                slug = name.lower().strip()
+                slug = re.sub(r"[^a-z0-9]+", "-", slug)
+                return slug.strip("-")
+
+            if company:
+                target_slug = slugify(company)
+                pdfs = sorted([f for f in after_pdfs if f.startswith(f"{target_slug}_")])
+            else:
+                pdfs = new_pdfs
+
+            os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
+            with open(manifest_path, 'w', encoding='utf-8') as fh:
+                json.dump(
+                    {'pdf_files': pdfs, 'created_at': datetime.now().isoformat()},
+                    fh,
+                    ensure_ascii=False,
+                )
             _pipeline_status.update({"step": "Downloaded",
                                     "message": f"Downloaded {len(pdfs)} PDFs",
                                     "progress": 25, "pdfs_found": len(pdfs)})
@@ -204,21 +267,46 @@ def api_upload_pdf():
         return jsonify({"error": "No file provided"})
     files = req.files.getlist('file')
     saved = []
-    os.makedirs('data/input/', exist_ok=True)
+    upload_dir = 'data/input/uploads/'
+    os.makedirs(upload_dir, exist_ok=True)
     for f in files:
         if f.filename.lower().endswith('.pdf'):
             safe_name = f.filename.replace(' ', '_')
-            path = os.path.join('data/input/', safe_name)
+            path = os.path.join(upload_dir, safe_name)
             f.save(path)
-            saved.append(f.filename)
+            saved.append(safe_name)
             print(f'Uploaded: {f.filename}')
     if saved:
+        # Persist this upload batch so `only_new=1` can reliably show only these results.
+        manifest_path = 'data/output/last_upload_manifest.json'
+        os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
+        with open(manifest_path, 'w', encoding='utf-8') as fh:
+            json.dump(
+                {'pdf_files': saved, 'created_at': datetime.now().isoformat()},
+                fh,
+                ensure_ascii=False,
+            )
+
+        # Immediately mark the pipeline as running so the frontend polling
+        # doesn't stop on the first request before the background thread updates.
+        _pipeline_status = {
+            "running": True,
+            "step": "Queued",
+            "message": "Upload received. Starting parser...",
+            "progress": 5,
+            "pdfs_found": len(saved),
+            "records": 0,
+        }
+
         def process():
-            subprocess.run(['python', '-m', 'src.parser', '--input', 'data/input/'],
-                          capture_output=True, cwd=os.getcwd())
-            subprocess.run(['python', '-m', 'src.processor.merger'],
-                          capture_output=True, cwd=os.getcwd())
-            subprocess.run(['python', '-m', 'src.processor.deduplicator'],
-                          capture_output=True, cwd=os.getcwd())
+            global _pipeline_status
+            _pipeline_status = {"running": True, "step": "Parsing PDFs", "message": "Processing uploaded files...", "progress": 40, "pdfs_found": len(saved), "records": 0}
+            subprocess.run(['python', '-m', 'src.parser', '--input', upload_dir], capture_output=True, cwd=os.getcwd(), timeout=120)
+            _pipeline_status.update({"step": "Merging", "message": "Merging records...", "progress": 70})
+            subprocess.run(['python', '-m', 'src.processor.merger'], capture_output=True, cwd=os.getcwd(), timeout=120)
+            _pipeline_status = {"running": False, "step": "Complete", "message": "Processing complete!", "progress": 100, "pdfs_found": len(saved), "records": 0}
+            _pipeline_status.update({"step": "Deduplicating", "message": "Removing duplicates...", "progress": 85})
+            subprocess.run(['python', '-m', 'src.processor.deduplicator'], capture_output=True, cwd=os.getcwd())
+            _pipeline_status = {"running": False, "step": "Complete", "message": f"Done! {len(saved)} file(s) processed.", "progress": 100, "pdfs_found": len(saved), "records": 0}
         threading.Thread(target=process, daemon=True).start()
     return jsonify({"saved": saved, "count": len(saved), "processing": True})

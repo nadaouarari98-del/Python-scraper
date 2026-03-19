@@ -74,7 +74,9 @@ def _get_session(user_agent: str) -> requests.Session:
     global _session
     if _session is None:
         _session = requests.Session()
-        _session.headers.update({"User-Agent": user_agent})
+        # Strip any stray whitespace/newlines that may come from YAML config files
+        clean_ua = str(user_agent).strip()
+        _session.headers.update({"User-Agent": clean_ua})
     return _session
 
 
@@ -161,55 +163,126 @@ def _scrape_pdf_links_static(
 def _search_bse(
     company_name: str, cfg: DownloaderConfig, session: requests.Session
 ) -> str | None:
-    """Return an investor page URL for *company_name* via BSE search, or None."""
-    params = {"comp_name": company_name}
-    try:
-        resp = session.get(
-            cfg.bse.search_endpoint,
-            params=params,
-            timeout=cfg.downloader.request_timeout_seconds,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        # BSE API returns a list of dicts; try to find the company's page
-        for item in (data if isinstance(data, list) else []):
-            name_match = company_name.lower() in str(
-                item.get("LONG_NAME", item.get("name", ""))
-            ).lower()
-            if name_match:
-                code = item.get("SCRIP_CD", item.get("code", ""))
-                slug = _slugify(str(item.get("LONG_NAME", company_name)))
-                url = cfg.bse.company_page_pattern.format(slug=slug, code=code)
-                _logger.debug("BSE found page for %s: %s", company_name, url)
-                return url
-    except Exception as exc:  # noqa: BLE001
-        _logger.warning("BSE search failed for '%s': %s", company_name, exc)
+    """Return an investor page URL for *company_name* via BSE search, or None.
+
+    Uses BSE's JSON autocomplete API with correct Referer and Origin headers
+    to bypass basic bot-detection.  Falls back to Playwright if the API
+    returns an empty result (JavaScript-gated pages).
+    """
+    # BSE requires these headers or returns 403 / empty JSON
+    bse_headers = {
+        "Referer": "https://www.bseindia.com/",
+        "Origin": "https://www.bseindia.com",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+
+    # Primary: BSE API v1 autocomplete
+    endpoints = [
+        f"https://api.bseindia.com/BseIndiaAPI/api/ComHeadernew/w"
+        f"?Quotetype=Q&scripcode=&segment=0&strType=C&companyname={requests.utils.quote(company_name)}",
+        # Fallback: older BSE search endpoint from config
+        cfg.bse.search_endpoint + f"?comp_name={requests.utils.quote(company_name)}",
+    ]
+
+    for endpoint in endpoints:
+        try:
+            resp = session.get(
+                endpoint,
+                headers=bse_headers,
+                timeout=cfg.downloader.request_timeout_seconds,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            items = data if isinstance(data, list) else data.get("Table", data.get("data", []))
+            for item in items:
+                name_in_api = str(
+                    item.get("LONG_NAME", item.get("Issuer_Name", item.get("name", "")))
+                )
+                if company_name.lower() in name_in_api.lower():
+                    code = str(item.get("SCRIP_CD", item.get("Scrip_Cd", item.get("code", ""))))
+                    slug = _slugify(name_in_api or company_name)
+                    url = cfg.bse.company_page_pattern.format(slug=slug, code=code)
+                    _logger.info("BSE found page for %s: %s", company_name, url)
+                    return url
+        except Exception as exc:  # noqa: BLE001
+            _logger.warning("BSE endpoint %s failed: %s", endpoint, exc)
+
+    _logger.warning("BSE search found no match for '%s'", company_name)
     return None
+
+
+def _bootstrap_nse_session(session: requests.Session, timeout: int) -> bool:
+    """Visit the NSE homepage to acquire anti-bot cookies.
+
+    NSE sets several cookies (nsit, nseappid, ak_bmsc, etc.) on the homepage
+    that are required for subsequent API calls to return data instead of 401.
+
+    Returns:
+        True if bootstrapping succeeded, False on error.
+    """
+    nse_headers = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+    }
+    try:
+        resp = session.get("https://www.nseindia.com", headers=nse_headers, timeout=timeout)
+        resp.raise_for_status()
+        _logger.debug("NSE bootstrap: cookies = %s", list(session.cookies.keys()))
+        return True
+    except Exception as exc:
+        _logger.warning("NSE homepage bootstrap failed: %s", exc)
+        return False
 
 
 def _search_nse(
     company_name: str, cfg: DownloaderConfig, session: requests.Session
 ) -> str | None:
-    """Return an investor page URL for *company_name* via NSE search, or None."""
-    try:
-        endpoint = cfg.nse.company_search_endpoint.format(
-            query=requests.utils.quote(company_name)
-        )
-        resp = session.get(
-            endpoint,
-            timeout=cfg.downloader.request_timeout_seconds,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        results = data.get("data", []) if isinstance(data, dict) else []
-        for item in results:
-            symbol = item.get("symbol", "")
-            if symbol:
-                url = cfg.nse.company_page_pattern.format(symbol=symbol)
-                _logger.debug("NSE found page for %s: %s", company_name, url)
-                return url
-    except Exception as exc:  # noqa: BLE001
-        _logger.warning("NSE search failed for '%s': %s", company_name, exc)
+    """Return an investor page URL for *company_name* via NSE search, or None.
+
+    NSE's API requires browser cookies obtained by first visiting the homepage.
+    This function bootstraps the session once, then calls the autocomplete API.
+    """
+    _bootstrap_nse_session(session, cfg.downloader.request_timeout_seconds)
+
+    nse_api_headers = {
+        "Referer": "https://www.nseindia.com/",
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+
+    # NSE autocomplete endpoint
+    endpoints = [
+        f"https://www.nseindia.com/api/search/autocomplete?q={requests.utils.quote(company_name)}",
+        cfg.nse.company_search_endpoint.format(query=requests.utils.quote(company_name)),
+    ]
+
+    for endpoint in endpoints:
+        try:
+            time.sleep(0.5)   # small polite delay after cookie bootstrap
+            resp = session.get(
+                endpoint,
+                headers=nse_api_headers,
+                timeout=cfg.downloader.request_timeout_seconds,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            results = data.get("data", []) if isinstance(data, dict) else []
+            for item in results:
+                symbol = item.get("symbol", "")
+                if symbol:
+                    url = cfg.nse.company_page_pattern.format(symbol=symbol)
+                    _logger.info("NSE found page for %s: %s", company_name, url)
+                    return url
+        except Exception as exc:  # noqa: BLE001
+            _logger.warning("NSE endpoint %s failed: %s", endpoint, exc)
+
+    _logger.warning("NSE search found no match for '%s'", company_name)
     return None
 
 
