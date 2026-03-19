@@ -454,7 +454,38 @@ def create_app():
             <!-- Page 2: Data Collection -->
             <div id="page-2" class="page-section" style="display: none;">
               <h1>Data Collection</h1>
-              <div style="padding:0" id="shareholderViewer">
+              <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:20px;margin-bottom:20px">
+  <div style="font-size:15px;font-weight:600;color:#0369a1;margin-bottom:16px">Add New Company Data</div>
+  <div style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:500;margin-bottom:8px">Option 1 — Search and download automatically</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <input id="companyInput" placeholder="Company name (e.g. Tech Mahindra)" style="flex:1;min-width:180px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px">
+      <span style="color:#6b7280;font-size:13px">or</span>
+      <input id="urlInput" placeholder="Paste investor page URL" style="flex:2;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px">
+      <button onclick="startPipeline()" style="padding:8px 20px;background:#0369a1;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500">Search and Download</button>
+    </div>
+  </div>
+  <div style="border-top:1px solid #bae6fd;padding-top:16px">
+    <div style="font-size:13px;font-weight:500;margin-bottom:8px">Option 2 — Upload PDF manually</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <input type="file" id="pdfUpload" multiple accept=".pdf" style="flex:1;font-size:13px;padding:6px">
+      <button onclick="uploadPDFs()" style="padding:8px 20px;background:#059669;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500">Upload and Process</button>
+    </div>
+    <div id="uploadStatus" style="font-size:12px;color:#059669;margin-top:6px"></div>
+  </div>
+  <div id="pipelineProgress" style="margin-top:16px;display:none">
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+      <span id="pipelineStep" style="font-size:13px;font-weight:500;color:#0369a1"></span>
+      <span id="pipelinePct" style="font-size:13px;color:#6b7280"></span>
+    </div>
+    <div style="background:#e0f2fe;border-radius:4px;height:10px;overflow:hidden">
+      <div id="progressBar" style="background:#0369a1;height:10px;border-radius:4px;width:0%;transition:width 0.5s"></div>
+    </div>
+    <div id="pipelineMsg" style="font-size:12px;color:#6b7280;margin-top:6px"></div>
+  </div>
+</div>
+
+<div style="padding:0" id="shareholderViewer">
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
     <div style="background:#f8fafc;border-radius:8px;padding:16px;text-align:center"><div style="font-size:13px;color:#6b7280">Total Records</div><div style="font-size:24px;font-weight:600" id="p2total">-</div></div>
     <div style="background:#f8fafc;border-radius:8px;padding:16px;text-align:center"><div style="font-size:13px;color:#6b7280">Companies</div><div style="font-size:24px;font-weight:600" id="p2cos">-</div></div>
@@ -472,15 +503,16 @@ def create_app():
   <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px">
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0">
-        <th style="padding:10px 12px;text-align:left">Name</th>
-        <th style="padding:10px 12px;text-align:left">Company</th>
-        <th style="padding:10px 12px;text-align:left">Folio No</th>
-        <th style="padding:10px 12px;text-align:right">Shares</th>
-        <th style="padding:10px 12px;text-align:right">Dividend</th>
-        <th style="padding:10px 12px;text-align:right">Market Value</th>
-        <th style="padding:10px 12px;text-align:right">Total Wealth</th>
-        <th style="padding:10px 12px;text-align:center">Contact</th>
-      </tr></thead>
+      <thead><tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;cursor:pointer">
+  <th onclick="sortShareholders('full_name')" style="padding:10px 12px;text-align:left;user-select:none">Name <span id="sort_full_name"></span></th>
+  <th onclick="sortShareholders('company_name')" style="padding:10px 12px;text-align:left;user-select:none">Company <span id="sort_company_name"></span></th>
+  <th style="padding:10px 12px;text-align:left">Folio No</th>
+  <th onclick="sortShareholders('current_holding')" style="padding:10px 12px;text-align:right;user-select:none">Shares <span id="sort_current_holding"></span></th>
+  <th onclick="sortShareholders('total_dividend')" style="padding:10px 12px;text-align:right;user-select:none">Dividend <span id="sort_total_dividend"></span></th>
+  <th onclick="sortShareholders('market_value')" style="padding:10px 12px;text-align:right;user-select:none">Market Value <span id="sort_market_value"></span></th>
+  <th onclick="sortShareholders('total_wealth')" style="padding:10px 12px;text-align:right;user-select:none">Total Wealth <span id="sort_total_wealth"></span></th>
+  <th style="padding:10px 12px;text-align:center">Contact</th>
+</tr></thead>
       <tbody id="shBody"><tr><td colspan="8" style="text-align:center;padding:40px;color:#9ca3af">Loading...</td></tr></tbody>
     </table>
   </div>
@@ -855,6 +887,8 @@ def create_app():
           // Update page title
           const titles = ['Dashboard', 'Data Collection', 'PDF Processing', 'Deduplication', 'Value Filtering', 'Mobile Enrichment', 'Verification', 'CRM Export', 'Activity Logs', 'Financial Year View'];
           document.getElementById('pageTitle').textContent = titles[pageNum - 1];
+          if (pageNum === 2) { setTimeout(function(){ if(typeof loadShareholders==='function') loadShareholders(1); }, 100); }
+          if (pageNum === 1) { setTimeout(function(){ if(typeof updateDashboard==='function') updateDashboard(); }, 100); }
         }
         
         // REQUIREMENT 4: Financial Year selector
@@ -988,14 +1022,31 @@ function loadShareholders(page) {
   var search = (document.getElementById('srchBox') || {}).value || '';
   var company = (document.getElementById('coFilter') || {}).value || '';
   var minWealth = (document.getElementById('wealthFilter') || {}).value || 0;
-  var url = '/api/shareholders?search=' + encodeURIComponent(search) + '&company=' + encodeURIComponent(company) + '&min_wealth=' + minWealth + '&page=' + shPage + '&per_page=50';
+  var url = '/api/shareholders?search=' + encodeURIComponent(search) + '&company=' + encodeURIComponent(company) + '&min_wealth=' + minWealth + '&page=' + shPage + '&per_page=50&sort=' + (window._shSort||'full_name') + '&order=' + (window._shOrder||'asc');
   fetch(url).then(function(r){return r.json();}).then(function(data){
     var tbody = document.getElementById('shBody');
     if (!tbody) return;
     if (!data.records || data.records.length === 0) {
       tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#9ca3af">No records found</td></tr>';
     } else {
-      tbody.innerHTML = data.records.map(function(r){
+      // Instant sort on client for visible page
+      var sort = window._shSort || 'full_name';
+      var order = window._shOrder || 'asc';
+      var records = data.records.slice();
+      var numericCols = ['current_holding','total_dividend','market_value','total_wealth'];
+      records.sort(function(a, b) {
+        var av = a[sort] || '';
+        var bv = b[sort] || '';
+        if (numericCols.indexOf(sort) !== -1) {
+          av = parseFloat(av.replace(/,/g, '')) || 0;
+          bv = parseFloat(bv.replace(/,/g, '')) || 0;
+          return order === 'asc' ? av - bv : bv - av;
+        } else {
+          // Use localeCompare for proper alpha sort (handles diacritics, Unicode, etc)
+          return av.toString().trim().localeCompare(bv.toString().trim(), undefined, { sensitivity: 'base' }) * (order === 'asc' ? 1 : -1);
+        }
+      });
+      tbody.innerHTML = records.map(function(r){
         var contact = r.contact_number ? '<span style="color:#10b981;font-weight:500">Yes</span>' : '<span style="color:#d1d5db">No</span>';
         return '<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:8px 12px">' + (r.full_name||'') + '</td><td style="padding:8px 12px;color:#6b7280">' + (r.company_name||'') + '</td><td style="padding:8px 12px;font-family:monospace;font-size:12px">' + (r.folio_no||'') + '</td><td style="padding:8px 12px;text-align:right">' + (r.current_holding||'') + '</td><td style="padding:8px 12px;text-align:right">' + (r.total_dividend||'') + '</td><td style="padding:8px 12px;text-align:right">' + (r.market_value||'') + '</td><td style="padding:8px 12px;text-align:right;font-weight:500">' + (r.total_wealth||'') + '</td><td style="padding:8px 12px;text-align:center">' + contact + '</td></tr>';
       }).join('');
@@ -1026,6 +1077,66 @@ function resetFilters() {
   var w = document.getElementById('wealthFilter'); if(w) w.value='';
   loadShareholders(1);
 }
+
+function startPipeline() {
+  var company = (document.getElementById('companyInput')||{}).value||'';
+  var url = (document.getElementById('urlInput')||{}).value||'';
+  if (!company && !url) { alert('Enter a company name or URL'); return; }
+  document.getElementById('pipelineProgress').style.display='block';
+  document.getElementById('progressBar').style.width='5%';
+  document.getElementById('pipelineStep').textContent='Starting...';
+  document.getElementById('pipelineMsg').textContent='';
+  fetch('/api/pipeline/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({company:company,url:url})})
+    .then(function(r){return r.json();})
+    .then(function(d){if(d.error){alert(d.error);return;}setTimeout(pollPipelineStatus,2000);});
+}
+function pollPipelineStatus() {
+  fetch('/api/pipeline/status').then(function(r){return r.json();}).then(function(d){
+    var b=document.getElementById('progressBar'); if(b) b.style.width=d.progress+'%';
+    var s=document.getElementById('pipelineStep'); if(s) s.textContent=d.step;
+    var m=document.getElementById('pipelineMsg'); if(m) m.textContent=d.message;
+    var p=document.getElementById('pipelinePct'); if(p) p.textContent=d.progress+'%';
+    if(d.running||(d.progress>0&&d.progress<100)){setTimeout(pollPipelineStatus,2000);}
+    else if(d.progress===100){loadShareholders(1);}
+  });
+}
+function uploadPDFs() {
+  var input=document.getElementById('pdfUpload');
+  if(!input||!input.files||!input.files.length){alert('Select at least one PDF');return;}
+  var status=document.getElementById('uploadStatus');
+  if(status) status.textContent='Uploading...';
+  var fd=new FormData();
+  for(var i=0;i<input.files.length;i++) fd.append('file',input.files[i]);
+  fetch('/api/upload',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+    if(d.error){if(status) status.textContent='Error: '+d.error;return;}
+    if(status) status.textContent='Uploaded '+d.count+' file(s). Processing automatically...';
+    document.getElementById('pipelineProgress').style.display='block';
+    document.getElementById('pipelineStep').textContent='Processing uploaded PDFs...';
+    document.getElementById('progressBar').style.width='50%';
+    setTimeout(function(){loadShareholders(1);document.getElementById('progressBar').style.width='100%';document.getElementById('pipelineStep').textContent='Complete';},30000);
+  });
+}
+
+
+    function sortShareholders(col) {
+      if (window._shSort === col) {
+        window._shOrder = window._shOrder === 'asc' ? 'desc' : 'asc';
+      } else {
+        window._shSort = col;
+        window._shOrder = 'asc';
+      }
+      var cols = ['full_name','company_name','current_holding','total_dividend','market_value','total_wealth'];
+      cols.forEach(function(c) {
+        var el = document.getElementById('sort_' + c);
+        if (!el) return;
+        if (c === window._shSort) {
+          el.textContent = window._shOrder === 'asc' ? ' ^' : ' v';
+        } else {
+          el.textContent = '';
+        }
+      });
+      loadShareholders(1);
+    }
 </script>
     </body>
     </html>
