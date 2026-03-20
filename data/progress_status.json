@@ -17,17 +17,17 @@
     "timestamp": "2026-03-15T20:49:08.276431"
   },
   "merger": {
-    "timestamp": "2026-03-19T23:53:24.676919",
+    "timestamp": "2026-03-20T04:24:18.122813",
     "files_processed": 4,
     "total_records": 1206,
     "column_mapping_issues": 8,
     "data_errors": 0,
     "unmapped_columns": [
-      "Shareholding Percentage (%)",
       "original_row_number",
       "Shareholding\nPercentage (%)",
+      "Sr. No",
       "Sr No",
-      "Sr. No"
+      "Shareholding Percentage (%)"
     ]
   }
 }

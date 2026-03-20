@@ -10,11 +10,9 @@ def init_db():
   conn = sqlite3.connect(DB_PATH)
   cursor = conn.cursor()
   try:
-    # Clean reset: drop the old table if it exists
-    cursor.execute('DROP TABLE IF EXISTS shareholders')
-    # Create with correct columns (add more as needed)
+    # Only create the table if it does not exist
     cursor.execute("""
-      CREATE TABLE shareholders (
+      CREATE TABLE IF NOT EXISTS shareholders (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         full_name TEXT,
         company_name TEXT,
@@ -25,10 +23,14 @@ def init_db():
         total_wealth REAL,
         contact TEXT,
         address TEXT,
+        pincode TEXT,
         pan TEXT,
         email TEXT,
         processed_at TEXT,
         source_file TEXT,
+        sr_no TEXT,
+        demat_account TEXT,
+        current_holding INTEGER,
         UNIQUE(full_name, folio_no)
       );
     """)
@@ -52,8 +54,32 @@ import os
 
 
 def create_app():
+
     app = Flask(__name__)
     init_db()  # Ensure DB and table exist at startup
+    # --- Auto-DB Sync: check schema, recreate if needed ---
+    import sqlite3
+    db_path = DB_PATH
+    need_recreate = False
+    try:
+      conn = sqlite3.connect(db_path)
+      cur = conn.cursor()
+      cur.execute("PRAGMA table_info(shareholders);")
+      cols = [row[1] for row in cur.fetchall()]
+      if 'company_name' not in cols or 'folio_no' not in cols:
+        need_recreate = True
+      conn.close()
+    except Exception as e:
+      print(f"DB schema check error: {e}")
+      need_recreate = True
+    if need_recreate:
+      try:
+        import os
+        os.remove(db_path)
+        print("Old DB removed for schema sync.")
+      except Exception:
+        pass
+      init_db()
     app.register_blueprint(shareholders_bp)
 
     ROOT = Path(__file__).resolve().parents[2]
@@ -502,7 +528,8 @@ def create_app():
   <div style="margin-bottom:16px">
     <div style="font-size:13px;font-weight:500;margin-bottom:8px">Option 1 — Search and download automatically</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-      <input id="companyInput" placeholder="Company name (e.g. Tech Mahindra)" style="flex:1;min-width:180px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px">
+      <input id="companyInput" list="company-options" placeholder="Company name (e.g. Tech Mahindra)" style="flex:1;min-width:180px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px">
+      <datalist id="company-options"></datalist>
       <span style="color:#6b7280;font-size:13px">or</span>
       <input id="urlInput" placeholder="Paste investor page URL" style="flex:2;min-width:220px;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px">
       <button onclick="startPipeline()" style="padding:8px 20px;background:#0369a1;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:500">Search and Download</button>
@@ -1027,6 +1054,18 @@ def create_app():
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+                    // Fetch and populate company autocomplete list
+                    fetch('/api/companies').then(r => r.json()).then(data => {
+                      var datalist = document.getElementById('company-options');
+                      if (datalist && data.companies) {
+                        datalist.innerHTML = '';
+                        data.companies.forEach(function(name) {
+                          var opt = document.createElement('option');
+                          opt.value = name;
+                          datalist.appendChild(opt);
+                        });
+                      }
+                    });
           console.log('DOMContentLoaded fired');
           attachNavHandlers();
           
@@ -1221,38 +1260,93 @@ function openSseStreamRobust(jobId) {
       if (p) p.textContent = (data.pct || data.progress || 0) + '%';
       if (data.status === 'no_data') {
         evtSource.close();
+        currentEventSource = null;
         if (b) b.style.width = '100%';
         if (s) s.textContent = 'No Data Found';
         clearShareholdersTable();
+        // Clear progress bar and reset UI after 500ms
+        setTimeout(function() {
+          if (b) b.style.width = '0%';
+          if (s) s.textContent = '';
+          if (m) m.textContent = '';
+          if (p) p.textContent = '0%';
+          document.getElementById('pipelineProgress').style.display = 'none';
+        }, 500);
       } else if (data.status === 'done' || data.progress === 100) {
+        // CRITICAL: Close EventSource FIRST to prevent zombie connections
         evtSource.close();
+        currentEventSource = null;
+        
         if (b) b.style.width = '100%';
         if (s) s.textContent = 'Complete';
-        // Set the company filter to the last searched company and refresh table
+        
+        // Set the company filter to the last searched company
         var coFilter = document.getElementById('coFilter');
         if (coFilter && window._lastCompanySearched) {
           coFilter.value = window._lastCompanySearched;
         }
-        // Refresh the table using loadShareholders so filters work correctly
+        
+        // CRITICAL: Fetch data IMMEDIATELY when 'done' signal received
+        console.log('Status is "done" - fetching data immediately');
         loadShareholders(1);
-        // One extra refresh after 1.5s in case the file was still being written
-        setTimeout(function() { loadShareholders(1); }, 1500);
+        
+        // Scroll table to top to show newest records
+        var tbody = document.getElementById('shBody');
+        if (tbody && tbody.parentElement) {
+          setTimeout(function() { tbody.parentElement.scrollTop = 0; }, 100);
+        }
+        
+        // Clear progress bar and hide it after 1.5s so user sees "Complete"
+        setTimeout(function() {
+          if (b) { 
+            b.style.width = '0%';
+            b.classList.remove('progress-animated');
+          }
+          if (s) s.textContent = '';
+          if (m) m.textContent = '';
+          if (p) p.textContent = '0%';
+          document.getElementById('pipelineProgress').style.display = 'none';
+        }, 1500);
+        
+        // One extra refresh after 2s in case the file was still being written
+        setTimeout(function() { loadShareholders(1); }, 2000);
       } else if (data.status === 'complete' && data.count === 0) {
         evtSource.close();
+        currentEventSource = null;
         if (b) b.style.width = '100%';
         if (s) s.textContent = 'Blocked or No Data';
         clearShareholdersTable();
         alert('Access denied or no data found for this company.');
+        // Clear progress bar
+        setTimeout(function() {
+          if (b) b.style.width = '0%';
+          if (s) s.textContent = '';
+          if (m) m.textContent = '';
+          if (p) p.textContent = '0%';
+          document.getElementById('pipelineProgress').style.display = 'none';
+        }, 500);
       } else if (data.status === 'error') {
         evtSource.close();
+        currentEventSource = null;
         if (s) s.textContent = 'Error: ' + (data.step || '');
         if (b) b.style.background = '#ef4444';
+        // Clear progress bar
+        setTimeout(function() {
+          if (b) { 
+            b.style.width = '0%';
+            b.style.background = '#0369a1';
+          }
+          if (s) s.textContent = '';
+          if (m) m.textContent = '';
+          if (p) p.textContent = '0%';
+          document.getElementById('pipelineProgress').style.display = 'none';
+        }, 2000);
       }
     } catch(err) { console.error('SSE parse error', err); }
   };
   evtSource.onerror = function() {
     console.warn('SSE stream closed or errored for job', jobId);
-    evtSource.close();
+    try { evtSource.close(); } catch(e) {}
     currentEventSource = null;
   };
 }
@@ -1416,9 +1510,28 @@ function uploadPDFs() {
         
         return activities[:20]
 
+
+    @app.route('/api/companies')
+    def api_companies():
+      """Serve the list of company names from companies.json as JSON. Always returns a list, never errors."""
+      import os
+      path = os.path.join(os.path.dirname(__file__), '../../companies.json')
+      try:
+        if not os.path.exists(path):
+          return jsonify({'companies': []})
+        with open(path, 'r', encoding='utf-8') as f:
+          companies = json.load(f)
+        if not isinstance(companies, list):
+          companies = []
+        return jsonify({'companies': companies})
+      except Exception as e:
+        print(f"/api/companies error: {e}")
+        return jsonify({'companies': []})
+
+
     @app.route('/')
     def index():
-        return render_template_string(TEMPLATE)
+      return render_template_string(TEMPLATE)
     
     @app.route('/api/dashboard-data')
     def api_dashboard_data():

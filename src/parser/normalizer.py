@@ -28,12 +28,12 @@ import pandas as pd
 _COLUMN_SYNONYMS: dict[str, list[str]] = {
     "folio_no": [
         "folio", "folio no", "folio number", "investor id",
-        "register folio", "reg. folio",
+        "register folio", "reg. folio", "policy no", "policy number",
     ],
     "name": [
         "name of share", "name of investor", "investor name",
         "shareholder name", "first holder", "name of the share",
-        "^name$",
+        "^name$", "nominee name", "policy holder",
     ],
     "address": [
         "address", "registered address", "add.", "addr",
@@ -47,7 +47,7 @@ _COLUMN_SYNONYMS: dict[str, list[str]] = {
     ],
     "current_holding": [
         "current holding", "no. of shares", "no of shares",
-        "number of shares", "share", "holding", "qty",
+        "number of shares", "share", "holding", "qty", "shares",
     ],
 }
 

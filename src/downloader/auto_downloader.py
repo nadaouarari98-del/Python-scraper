@@ -176,6 +176,16 @@ def _search_bse(
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.9",
         "X-Requested-With": "XMLHttpRequest",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+        "DNT": "1",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Ch-Ua": '"Chromium";v="120", "Not:A-Brand";v="99"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
     }
 
     # Primary: BSE API v1 autocomplete
@@ -254,6 +264,16 @@ def _search_nse(
         "X-Requested-With": "XMLHttpRequest",
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "User-Agent": session.headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+        "DNT": "1",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Ch-Ua": '"Chromium";v="120", "Not:A-Brand";v="99"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
     }
 
     # NSE autocomplete endpoint
@@ -470,6 +490,12 @@ def download_pdfs(
         counters: dict[str, int] = {"found": 0, "downloaded": 0, "failed": 0}
         company_slug = _slugify(company_name)
 
+        # LIC keyword optimization: if user enters 'LIC', append additional search keywords
+        enhanced_keywords = list(keywords)
+        if "lic" in company_name.lower():
+            enhanced_keywords.extend(["unclaimed dividend", "policy", "unclaimed"])
+            _logger.info("LIC detected: enhanced keywords = %s", enhanced_keywords)
+
         # Resolve investor page
         investor_url, uses_js = _resolve_investor_page(
             company_name, cfg, source, session
@@ -491,9 +517,9 @@ def download_pdfs(
             results[company_name] = counters
             continue
 
-        # Scrape PDF links — static first
+        # Scrape PDF links — static first (using enhanced keywords for LIC)
         pdf_links = _scrape_pdf_links_static(
-            investor_url, keywords, extensions, session,
+            investor_url, enhanced_keywords, extensions, session,
             cfg.downloader.request_timeout_seconds,
         )
 
@@ -504,7 +530,7 @@ def download_pdfs(
                 company_name,
             )
             pdf_links = extract_pdf_links_js(
-                investor_url, keywords=keywords, extensions=extensions
+                investor_url, keywords=enhanced_keywords, extensions=extensions
             )
 
         counters["found"] = len(pdf_links)

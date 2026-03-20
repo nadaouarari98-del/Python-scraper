@@ -249,16 +249,10 @@ def parse_pdf(
             _logger.debug("Page %d/%d: skipping title/header page.", page, page_count)
             page_errors.append(page)
             continue
-        
         try:
             raw_df, method = _extract_page(str(pdf_path), page, enable_ocr)
             if raw_df is not None and len(raw_df) >= _MIN_ROWS_FOR_SUCCESS:
-
                 # --- Header injection for continuation pages ---
-                # Many PDFs only print the header on page 1. On pages 2+
-                # pdfplumber returns auto-numbered columns (col_0, col_1 ...).
-                # If we have a known header and the current first row looks like
-                # data (not column names), apply the saved header.
                 if page > 1 and page1_header is not None:
                     first_row_vals = raw_df.iloc[0].astype(str).str.lower().tolist()
                     looks_like_header = any(
@@ -271,11 +265,8 @@ def parse_pdf(
                             "Page %d: injected page-1 header (%d cols).",
                             page, len(page1_header),
                         )
-
-                # Normalize EACH page individually so all frames share
-                # the same canonical column schema before concat.
+                # Normalize EACH page individually so all frames share the same canonical column schema before concat.
                 page_norm = normalize_dataframe(raw_df, company, filename, year)
-
                 if not page_norm.empty:
                     page_frames.append(page_norm)
                     method_counts[method] = method_counts.get(method, 0) + 1
@@ -283,9 +274,7 @@ def parse_pdf(
                         "Page %d/%d: %d records via %s",
                         page, page_count, len(page_norm), method,
                     )
-                    # Save header from the first successful page for reuse
                     if page1_header is None:
-                        # Use the raw column names from the page that worked
                         page1_header = list(raw_df.columns)
                 else:
                     _logger.debug(
@@ -296,11 +285,16 @@ def parse_pdf(
                 _logger.debug("Page %d/%d: no data extracted.", page, page_count)
                 page_errors.append(page)
 
-        except Exception as exc:  # noqa: BLE001
-            _logger.warning(
-                "Page %d/%d FAILED (%s) — skipping.", page, page_count, exc
-            )
+        except Exception as exc:
+            _logger.error(f"Error parsing page {page}: {exc}", exc_info=True)
             page_errors.append(page)
+            continue  # Continue to next page even if this one fails
+
+    # Always send 100% progress update if possible (for UI unlock)
+    try:
+        increment_parser_status(total_pdfs=1, failed=len(page_errors))
+    except Exception:
+        pass
 
     if not page_frames:
         _logger.error("No data extracted from %s", filename)
