@@ -1233,16 +1233,10 @@ function openSseStreamRobust(jobId) {
         if (coFilter && window._lastCompanySearched) {
           coFilter.value = window._lastCompanySearched;
         }
-        // Robust table refresh with retry
-        var maxRetries = 5;
-        var retryDelay = 700;
-        var attempt = 0;
-        function tryRefresh() {
-          renderTable();
-          attempt++;
-          if (attempt < maxRetries) setTimeout(tryRefresh, retryDelay);
-        }
-        tryRefresh();
+        // Refresh the table using loadShareholders so filters work correctly
+        loadShareholders(1);
+        // One extra refresh after 1.5s in case the file was still being written
+        setTimeout(function() { loadShareholders(1); }, 1500);
       } else if (data.status === 'complete' && data.count === 0) {
         evtSource.close();
         if (b) b.style.width = '100%';
