@@ -1,3 +1,45 @@
+import sqlite3
+import logging
+
+# Path to persistent DB file
+DB_PATH = "data/pipeline.db"
+
+def init_db():
+  """Force drop and recreate the shareholders table with the correct schema."""
+  os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+  conn = sqlite3.connect(DB_PATH)
+  cursor = conn.cursor()
+  try:
+    # Clean reset: drop the old table if it exists
+    cursor.execute('DROP TABLE IF EXISTS shareholders')
+    # Create with correct columns (add more as needed)
+    cursor.execute("""
+      CREATE TABLE shareholders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        full_name TEXT,
+        company_name TEXT,
+        folio_no TEXT,
+        shares INTEGER,
+        dividend REAL,
+        market_value REAL,
+        total_wealth REAL,
+        contact TEXT,
+        address TEXT,
+        pan TEXT,
+        email TEXT,
+        processed_at TEXT,
+        source_file TEXT,
+        UNIQUE(full_name, folio_no)
+      );
+    """)
+    conn.commit()
+  except Exception as e:
+    logging.error(f"Error initializing database: {e}")
+  finally:
+    conn.close()
+
+
+
 from src.dashboard.shareholders_bp import shareholders_bp
 from flask import Flask, jsonify, request, Response, render_template_string, send_file, stream_with_context
 from pathlib import Path
@@ -11,6 +53,7 @@ import os
 
 def create_app():
     app = Flask(__name__)
+    init_db()  # Ensure DB and table exist at startup
     app.register_blueprint(shareholders_bp)
 
     ROOT = Path(__file__).resolve().parents[2]
@@ -671,6 +714,38 @@ def create_app():
         ];
         
         async function fetchData() {
+          function renderTable() {
+            console.log('renderTable called');
+            fetch('/api/get-records')
+              .then(r => r.json())
+              .then(function(data) {
+                var tbody = document.getElementById('shBody');
+                console.log('shBody:', tbody);
+                console.log('Table data:', data);
+                if (!tbody) return;
+                if (!data.records || data.records.length === 0) {
+                  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#9ca3af">No records found</td></tr>';
+                } else {
+                  tbody.innerHTML = data.records.map(function(r) {
+                    return '<tr>' +
+                      '<td>' + (r.full_name || '') + '</td>' +
+                      '<td>' + (r.company_name || '') + '</td>' +
+                      '<td>' + (r.folio_no || '') + '</td>' +
+                      '<td>' + (r.current_holding || '') + '</td>' +
+                      '<td>' + (r.total_dividend || '') + '</td>' +
+                      '<td>' + (r.market_value || '') + '</td>' +
+                      '<td>' + (r.total_wealth || '') + '</td>' +
+                      '<td>' + (r.contact_number ? 'Yes' : 'No') + '</td>' +
+                    '</tr>';
+                  }).join('');
+                }
+              })
+              .catch(function(err) {
+                console.error('Error fetching table data:', err);
+                var tbody = document.getElementById('shBody');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#ef4444">Error loading data</td></tr>';
+              });
+          }
           try {
             console.log('fetchData: Calling /api/dashboard-data...');
             const r = await fetch('/api/dashboard-data');
@@ -1029,7 +1104,8 @@ function loadShareholders(page, onlyNew) {
   fetch(url).then(function(r){return r.json();}).then(function(data){
     var tbody = document.getElementById('shBody');
     if (!tbody) return;
-    if (!data.records || data.records.length === 0) {
+    var hasData = data.records && data.records.length > 0;
+    if (!hasData) {
       tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#9ca3af">No records found</td></tr>';
     } else {
       // Instant sort on client for visible page
@@ -1072,6 +1148,8 @@ function loadShareholders(page, onlyNew) {
     if (cos && data.companies) cos.textContent = data.companies.length;
     var dlBtn = document.getElementById('dlBtn');
     if (dlBtn) dlBtn.href = '/api/shareholders/download?search=' + encodeURIComponent(search) + '&company=' + encodeURIComponent(company) + '&min_wealth=' + minWealth;
+    // Callback for retry logic
+    if (typeof onlyNew === 'function') { onlyNew(hasData); }
   });
 }
 function resetFilters() {
@@ -1081,14 +1159,31 @@ function resetFilters() {
   loadShareholders(1);
 }
 
+
+// --- Robust pipeline state management ---
+var currentEventSource = null;
+
 function startPipeline() {
+  // 1. Force close any previous SSE and robustly reset UI state
+  if (currentEventSource) {
+    try { currentEventSource.close(); } catch(e) {}
+    currentEventSource = null;
+  }
+  var b = document.getElementById('progressBar');
+  var s = document.getElementById('pipelineStep');
+  var m = document.getElementById('pipelineMsg');
+  var p = document.getElementById('pipelinePct');
+  if (b) { b.style.width = '0%'; b.style.background = '#0369a1'; b.classList.remove('progress-complete'); b.classList.add('progress-animated'); }
+  if (s) s.textContent = 'Initializing...';
+  if (m) m.textContent = '';
+  if (p) p.textContent = '0%';
+  document.getElementById('pipelineProgress').style.display = 'block';
+  clearShareholdersTable();
+
+  // 3. Start new search request
   var company = (document.getElementById('companyInput')||{}).value||'';
   var url = (document.getElementById('urlInput')||{}).value||'';
   if (!company && !url) { alert('Enter a company name or URL'); return; }
-  document.getElementById('pipelineProgress').style.display='block';
-  document.getElementById('progressBar').style.width='3%';
-  document.getElementById('pipelineStep').textContent='Submitting job...';
-  document.getElementById('pipelineMsg').textContent='';
 
   fetch('/api/jobs/submit', {
     method: 'POST',
@@ -1098,28 +1193,62 @@ function startPipeline() {
   .then(function(r){ return r.json(); })
   .then(function(d) {
     if (d.error) { alert(d.error); return; }
-    _openSseStream(d.job_id);
+    // After job completes, set the company filter to the just-processed company and refresh table
+    openSseStreamRobust(d.job_id);
+    // Save the company name for later use
+    window._lastCompanySearched = company;
   });
 }
 
-function _openSseStream(jobId) {
+function openSseStreamRobust(jobId) {
+  if (currentEventSource) {
+    try { currentEventSource.close(); } catch(e) {}
+    currentEventSource = null;
+  }
   var evtSource = new EventSource('/api/stream/' + jobId);
+  currentEventSource = evtSource;
   evtSource.onmessage = function(e) {
     try {
       var data = JSON.parse(e.data);
+      console.log('Backend response:', data); // Debug: print backend response after task completes
       var b = document.getElementById('progressBar');
       var s = document.getElementById('pipelineStep');
       var m = document.getElementById('pipelineMsg');
       var p = document.getElementById('pipelinePct');
-      if (b) b.style.width = (data.pct || 0) + '%';
-      if (s) s.textContent = data.step || '';
+      if (b) b.style.width = (data.pct || data.progress || 0) + '%';
+      if (s) s.textContent = data.step || data.status || '';
       if (m) m.textContent = data.message || '';
-      if (p) p.textContent = (data.pct || 0) + '%';
-      if (data.status === 'done') {
+      if (p) p.textContent = (data.pct || data.progress || 0) + '%';
+      if (data.status === 'no_data') {
+        evtSource.close();
+        if (b) b.style.width = '100%';
+        if (s) s.textContent = 'No Data Found';
+        clearShareholdersTable();
+      } else if (data.status === 'done' || data.progress === 100) {
         evtSource.close();
         if (b) b.style.width = '100%';
         if (s) s.textContent = 'Complete';
-        loadShareholders(1);
+        // Set the company filter to the last searched company and refresh table
+        var coFilter = document.getElementById('coFilter');
+        if (coFilter && window._lastCompanySearched) {
+          coFilter.value = window._lastCompanySearched;
+        }
+        // Robust table refresh with retry
+        var maxRetries = 5;
+        var retryDelay = 700;
+        var attempt = 0;
+        function tryRefresh() {
+          renderTable();
+          attempt++;
+          if (attempt < maxRetries) setTimeout(tryRefresh, retryDelay);
+        }
+        tryRefresh();
+      } else if (data.status === 'complete' && data.count === 0) {
+        evtSource.close();
+        if (b) b.style.width = '100%';
+        if (s) s.textContent = 'Blocked or No Data';
+        clearShareholdersTable();
+        alert('Access denied or no data found for this company.');
       } else if (data.status === 'error') {
         evtSource.close();
         if (s) s.textContent = 'Error: ' + (data.step || '');
@@ -1130,7 +1259,14 @@ function _openSseStream(jobId) {
   evtSource.onerror = function() {
     console.warn('SSE stream closed or errored for job', jobId);
     evtSource.close();
+    currentEventSource = null;
   };
+}
+
+function clearShareholdersTable() {
+  // Clear the main data table body (implement as needed for your table)
+  var tbl = document.getElementById('shBody');
+  if (tbl) tbl.innerHTML = '';
 }
 
 function uploadPDFs() {
@@ -1506,7 +1642,18 @@ function uploadPDFs() {
         from src.worker.sse_stream import stream_events
 
         def generate():
-            yield from stream_events(job_id)
+          for event in stream_events(job_id):
+            # If the worker emits a 'no_data' status, treat as terminal
+            try:
+              data = json.loads(event.replace('data: ', '').strip())
+              if data.get('status') == 'no_data':
+                yield event
+                break
+            except Exception:
+              pass
+            yield event
+            if '"status": "done"' in event or '"status": "error"' in event:
+              break
 
         resp = Response(
             stream_with_context(generate()),

@@ -1,12 +1,21 @@
+from flask import Blueprint, request, jsonify, send_file
 import math
 import os
 import io
 import json
 from datetime import datetime
 import pandas as pd
-from flask import Blueprint, request, jsonify, send_file
 
 shareholders_bp = Blueprint('shareholders', __name__)
+
+@shareholders_bp.route('/api/get-records')
+def api_get_records():
+    try:
+        df = _load_df()
+        records = df.fillna('').astype(str).to_dict('records')
+        return jsonify({'records': records, 'total': len(records)})
+    except Exception as e:
+        return jsonify({'error': str(e), 'records': []}), 500
 
 def _load_df():
     prices_file = 'data/output/master_merged_with_prices.xlsx'
