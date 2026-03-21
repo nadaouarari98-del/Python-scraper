@@ -46,6 +46,13 @@ shareholders_bp = Blueprint('shareholders', __name__)
 def api_shareholders():
     try:
         df = _load_df()
+        
+        search = request.args.get('search', '')
+        company = request.args.get('company', '')
+        min_wealth = request.args.get('min_wealth', '')
+        
+        df = _filter_df(df, search, company, min_wealth)
+        
         # Pagination params
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 50))

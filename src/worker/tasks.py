@@ -38,7 +38,7 @@ _logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def _emit(job_id: str, step: str, pct: int,
-          message: str = "", status: str = "running") -> None:
+          message: str = "", status: str = "running", **kwargs) -> None:
     """Push an SSE event and update the RQ job meta (if RQ is active)."""
     from src.worker.sse_stream import push_event
     from src.worker.task_queue import update_job_meta
@@ -49,6 +49,7 @@ def _emit(job_id: str, step: str, pct: int,
         "message": message,
         "status": status,
     }
+    payload.update(kwargs)
     if job_id:
         push_event(job_id, payload)
         update_job_meta(job_id, {"progress": pct, "step": step, "message": message})
@@ -197,7 +198,8 @@ def run_parse_pipeline(
             100,
             f"Extracted {records_extracted} → "
             f"deduplicated to {records_after_dedup} records",
-            status="done",
+            status="complete",
+            count=records_after_dedup
         )
 
         return {

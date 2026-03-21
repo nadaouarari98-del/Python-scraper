@@ -67,6 +67,9 @@ def sync_excel_to_db():
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn_vac:
             conn_vac.execute(text("VACUUM;"))
             
+        # EXPLICITLY close database connections to prevent 'Database Locked' errors
+        engine.dispose()
+            
         logger.info(f"Successfully synced {len(df)} records into SQLite {db_path} and vacuumed DB.")
     except Exception as e:
         logger.error(f"Failed to sync with sqlalchemy: {e}")

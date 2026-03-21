@@ -1208,6 +1208,9 @@ function startPipeline() {
     try { currentEventSource.close(); } catch(e) {}
     currentEventSource = null;
   }
+  window.isLoading = true;
+  window.isProcessing = true;
+  
   var b = document.getElementById('progressBar');
   var s = document.getElementById('pipelineStep');
   var m = document.getElementById('pipelineMsg');
@@ -1222,7 +1225,13 @@ function startPipeline() {
   // 3. Start new search request
   var company = (document.getElementById('companyInput')||{}).value||'';
   var url = (document.getElementById('urlInput')||{}).value||'';
-  if (!company && !url) { alert('Enter a company name or URL'); return; }
+  if (!company && !url) { 
+    alert('Enter a company name or URL'); 
+    window.isLoading = false;
+    window.isProcessing = false;
+    document.getElementById('pipelineProgress').style.display = 'none';
+    return; 
+  }
 
   fetch('/api/jobs/submit', {
     method: 'POST',
@@ -1231,11 +1240,24 @@ function startPipeline() {
   })
   .then(function(r){ return r.json(); })
   .then(function(d) {
-    if (d.error) { alert(d.error); return; }
+    if (d.error) { 
+      alert(d.error);
+      window.isLoading = false;
+      window.isProcessing = false;
+      document.getElementById('pipelineProgress').style.display = 'none';
+      return; 
+    }
     // After job completes, set the company filter to the just-processed company and refresh table
     openSseStreamRobust(d.job_id);
     // Save the company name for later use
     window._lastCompanySearched = company;
+  })
+  .catch(function(err) {
+    console.error("Downloader submission failed", err);
+    window.isLoading = false;
+    window.isProcessing = false;
+    document.getElementById('pipelineProgress').style.display = 'none';
+    alert("Connection error starting pipeline.");
   });
 }
 
@@ -1272,12 +1294,18 @@ function openSseStreamRobust(jobId) {
           if (p) p.textContent = '0%';
           document.getElementById('pipelineProgress').style.display = 'none';
         }, 500);
-      } else if (data.status === 'done' || data.progress === 100) {
+      } else if (data.status === 'complete' || data.status === 'done' || data.progress === 100) {
         // CRITICAL: Close EventSource FIRST to prevent zombie connections
         evtSource.close();
         currentEventSource = null;
         
-        if (b) b.style.width = '100%';
+        window.isProcessing = false;
+        window.isLoading = false;
+        
+        if (b) { 
+          b.style.width = '100%';
+          b.classList.remove('progress-animated');
+        }
         if (s) s.textContent = 'Complete';
         
         // Set the company filter to the last searched company
@@ -1286,9 +1314,11 @@ function openSseStreamRobust(jobId) {
           coFilter.value = window._lastCompanySearched;
         }
         
-        // CRITICAL: Fetch data IMMEDIATELY when 'done' signal received
-        console.log('Status is "done" - fetching data immediately');
-        loadShareholders(1);
+        // CRITICAL: Fetch data IMMEDIATELY when 'complete' signal received
+        console.log('Status is "complete" - fetching data immediately');
+        if (typeof fetchData === 'function') fetchData();
+        if (typeof loadShareholders === 'function') loadShareholders(1);
+        if (typeof updateDashboard === 'function') updateDashboard();
         
         // Scroll table to top to show newest records
         var tbody = document.getElementById('shBody');
@@ -1298,18 +1328,17 @@ function openSseStreamRobust(jobId) {
         
         // Clear progress bar and hide it after 1.5s so user sees "Complete"
         setTimeout(function() {
-          if (b) { 
-            b.style.width = '0%';
-            b.classList.remove('progress-animated');
-          }
+          if (b) b.style.width = '0%';
           if (s) s.textContent = '';
           if (m) m.textContent = '';
           if (p) p.textContent = '0%';
           document.getElementById('pipelineProgress').style.display = 'none';
         }, 1500);
         
-        // One extra refresh after 2s in case the file was still being written
-        setTimeout(function() { loadShareholders(1); }, 2000);
+        // Force refresh if there is new data
+        if (data.count && data.count > 0) {
+          setTimeout(function() { window.location.reload(); }, 2000);
+        }
       } else if (data.status === 'complete' && data.count === 0) {
         evtSource.close();
         currentEventSource = null;
