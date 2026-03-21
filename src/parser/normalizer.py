@@ -564,10 +564,22 @@ def normalize_dataframe(
 
 def split_name_column(df, name_col="name"):
     """Split full name into first, middle, last name components."""
-    if name_col not in df.columns:
+    if df.empty or name_col not in df.columns:
+        if "first_name" not in df.columns: df["first_name"] = ""
+        if "last_name" not in df.columns: df["last_name"] = ""
+        if "middle_name" not in df.columns: df["middle_name"] = ""
+        if "father_husband_name" not in df.columns: df["father_husband_name"] = ""
         return df
     df["full_name"] = df[name_col].astype(str).str.strip()
     parts = df["full_name"].str.split(r"\s+", expand=True)
+    
+    if parts.empty or 0 not in parts.columns:
+        df["first_name"] = ""
+        df["last_name"] = ""
+        df["middle_name"] = ""
+        df["father_husband_name"] = ""
+        return df
+        
     df["first_name"] = parts[0].fillna("")
     df["last_name"] = parts.apply(lambda r: r[r.last_valid_index()] if r.last_valid_index() and r.last_valid_index() > 0 else "", axis=1)
     df["middle_name"] = parts.apply(lambda r: " ".join(r[1:r.last_valid_index()].dropna()) if r.last_valid_index() and r.last_valid_index() > 1 else "", axis=1)

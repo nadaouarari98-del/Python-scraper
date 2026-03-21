@@ -1,9 +1,17 @@
 def _load_df():
-    # Load the main shareholders DataFrame from the merged Excel file
-    path = os.path.join('data', 'output', 'master_merged.xlsx')
+    # Load the main shareholders DataFrame from the SQLite database
+    import sqlite3
+    path = os.path.join('data', 'pipeline.db')
     if not os.path.exists(path):
         return pd.DataFrame()
-    return pd.read_excel(path, dtype=str)
+    try:
+        conn = sqlite3.connect(path)
+        df = pd.read_sql_query("SELECT * FROM shareholders", conn)
+        conn.close()
+        return df.astype(str)
+    except Exception as e:
+        print(f"Error reading DB: {e}")
+        return pd.DataFrame()
 
 def _filter_df(df, search, company, min_wealth):
     # Filter DataFrame by search string, company, and minimum wealth
@@ -23,6 +31,12 @@ import math
 import os
 import io
 import json
+import threading
+import subprocess
+import time
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 from datetime import datetime
 import pandas as pd
 
@@ -73,7 +87,6 @@ _pipeline_status = {
 def api_run_pipeline():
     global _pipeline_status
     from flask import request as req
-    import threading, subprocess, os
     if _pipeline_status['running']:
         return jsonify({"error": "Pipeline already running. Please wait."})
     data = req.get_json() or {}
@@ -81,6 +94,7 @@ def api_run_pipeline():
     company = data.get('company', '')
 
     def execute():
+        import os, subprocess, json, time, requests
         global _pipeline_status
         try:
             input_root = 'data/input'
@@ -106,10 +120,6 @@ def api_run_pipeline():
             companies_list = [company] if company else []
             if url:
                 # For direct URLs use requests scraping fallback
-                import requests
-                from bs4 import BeautifulSoup
-                from urllib.parse import urljoin
-                import os, time
                 # Enhanced User-Agent to bypass 403 Forbidden errors on some servers
                 headers = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -181,7 +191,7 @@ def api_run_pipeline():
                                     "progress": 25, "pdfs_found": len(pdfs)})
             if not pdfs:
                 _pipeline_status = {"running": False, "step": "No PDFs found",
-                                   "message": "No PDFs found at that URL. Try pasting the direct investor page URL.",
+                                   "message": "Direct search blocked by NSE/BSE. Please use the Manual PDF Upload for this company.",
                                    "progress": 0, "pdfs_found": 0, "records": 0}
                 return
             _pipeline_status.update({"step": "Parsing PDFs",
@@ -205,9 +215,16 @@ def api_run_pipeline():
             subprocess.run(['python', '-m', 'src.enrichment.market_price',
                            '--input', 'data/output/master_merged.xlsx'],
                           capture_output=True, cwd=os.getcwd(), timeout=300)
+            _pipeline_status.update({"step": "Syncing DB",
+                                    "message": "Syncing processed data to SQLite database...",
+                                    "progress": 95})
+            subprocess.run(['python', '-m', 'src.processor.sync_to_db'],
+                          capture_output=True, cwd=os.getcwd(), timeout=120)
             try:
-                import pandas as pd
-                df = pd.read_excel('data/output/master_merged.xlsx', sheet_name=0, na_filter=False)
+                import sqlite3
+                conn = sqlite3.connect('data/pipeline.db')
+                df = pd.read_sql_query("SELECT * FROM shareholders", conn)
+                conn.close()
                 record_count = len(df)
             except:
                 record_count = 0
@@ -215,8 +232,12 @@ def api_run_pipeline():
                                "message": f"Done! {record_count} shareholder records processed.",
                                "progress": 100, "pdfs_found": len(pdfs), "records": record_count}
         except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            print("PIPELINE ERROR:")
+            print(tb)
             _pipeline_status = {"running": False, "step": "Error",
-                               "message": str(e), "progress": 0,
+                               "message": f"{str(e)}\n\n{tb}", "progress": 0,
                                "pdfs_found": 0, "records": 0}
 
     threading.Thread(target=execute, daemon=True).start()
@@ -229,7 +250,6 @@ def api_pipeline_status():
 @shareholders_bp.route('/api/upload', methods=['POST'])
 def api_upload_pdf():
     from flask import request as req
-    import threading, subprocess, os
     if 'file' not in req.files:
         return jsonify({"error": "No file provided"})
     files = req.files.getlist('file')
@@ -271,9 +291,10 @@ def api_upload_pdf():
             subprocess.run(['python', '-m', 'src.parser', '--input', upload_dir], capture_output=True, cwd=os.getcwd(), timeout=600)
             _pipeline_status.update({"step": "Merging", "message": "Merging records...", "progress": 70})
             subprocess.run(['python', '-m', 'src.processor.merger'], capture_output=True, cwd=os.getcwd(), timeout=300)
-            _pipeline_status = {"running": False, "step": "Complete", "message": "Processing complete!", "progress": 100, "pdfs_found": len(saved), "records": 0}
             _pipeline_status.update({"step": "Deduplicating", "message": "Removing duplicates...", "progress": 85})
             subprocess.run(['python', '-m', 'src.processor.deduplicator'], capture_output=True, cwd=os.getcwd())
+            _pipeline_status.update({"step": "Syncing DB", "message": "Syncing to Database...", "progress": 95})
+            subprocess.run(['python', '-m', 'src.processor.sync_to_db'], capture_output=True, cwd=os.getcwd())
             _pipeline_status = {"running": False, "step": "Complete", "message": f"Done! {len(saved)} file(s) processed.", "progress": 100, "pdfs_found": len(saved), "records": 0}
         threading.Thread(target=process, daemon=True).start()
     return jsonify({"saved": saved, "count": len(saved), "processing": True})
