@@ -182,6 +182,15 @@ def run_parse_pipeline(
         _emit(job_id, "Saving output", 95, "Writing master Excel file")
         output_path = _save_output(deduped_df)
 
+        _emit(job_id, "Syncing DB", 98, "Syncing data to SQLite database")
+        try:
+            import subprocess
+            import os
+            subprocess.run(['python', '-m', 'src.processor.sync_to_db'],
+                          capture_output=True, cwd=os.getcwd(), timeout=120)
+        except Exception as e:
+            _logger.error(f"DB sync failed: {e}")
+
         _emit(
             job_id,
             "Parse complete",
